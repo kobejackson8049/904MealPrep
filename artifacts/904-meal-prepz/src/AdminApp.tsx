@@ -249,6 +249,9 @@ export default function AdminApp() {
     if (apiToken) {
       const response = await fetch(`${apiBase()}/admin/orders/${id}/payment`, { method: 'PATCH', headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'paid' }) });
       if (!response.ok) { notify('Payment status could not be saved.'); return; }
+    } else {
+      const previewOrders = readStorage<Array<Record<string, any>>>('904-preview-api-orders', []);
+      localStorage.setItem('904-preview-api-orders', JSON.stringify(previewOrders.map((order) => order.id === id ? { ...order, paymentStatus: 'paid', status: 'confirmed', paymentConfirmedAt: new Date().toISOString(), paymentConfirmedBy: 'owner' } : order)));
     }
     setOrders((current) => current.map((order) => order.id === id && order.payment !== 'Refunded' ? { ...order, payment: 'Paid', status: 'Confirmed', paymentConfirmedAt: new Date().toISOString(), paymentConfirmedBy: 'owner' } : order));
     notify('Payment status updated. Revenue, customer spend, and analytics recalculated.');
