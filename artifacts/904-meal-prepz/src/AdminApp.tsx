@@ -154,7 +154,7 @@ export default function AdminApp() {
   const [location, setLocation] = useLocation();
   const tab = tabForRoute(location);
   const [mobileNav, setMobileNav] = useState(false);
-  const [orders, setOrders] = useState<AdminOrder[]>(demoOrders);
+  const [orders, setOrders] = useState<AdminOrder[]>(() => [...readStorage<Array<Record<string, any>>>('904-preview-api-orders', []).map(normalizeApiOrder), ...demoOrders]);
   const [meals, setMeals] = useState<AdminMenuMeal[]>(demoMeals);
   const [menuDraft, setMenuDraft] = useState<MenuDraft>(() => readStorage('904-menu-draft', createDraft(demoMeals)));
   const [publishedMealIds, setPublishedMealIds] = useState<string[]>(() => readStorage<string[]>('904-published-meal-ids', demoMeals.map((meal) => meal.id)));
