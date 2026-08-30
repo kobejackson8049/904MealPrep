@@ -18,13 +18,14 @@ pnpm run serve
 
 ## Deploy the public storefront to Vercel
 
-Import this directory as a Vercel project. Vercel detects Vite automatically:
+Import the repository root as the Vercel project. The root `vercel.json` builds this storefront and deploys the shared Express API as same-origin `/api/*` functions:
 
-- Build command: `pnpm run build` (or `npm run build`)
-- Output directory: `dist/public`
-- Install command: `pnpm install` (or `npm install`)
+- Root directory: repository root
+- Build command: use the `vercel.json` setting
+- Output directory: use the `vercel.json` setting
+- Install command: `pnpm install`
 
-The public demo can run without a server or database. `vite.config.ts` has portable defaults for local/Vercel builds; the Replit preview may override the port automatically. `vercel.json` rewrites page deep links back to the Vite entry point so routes such as `/menu` and `/order` survive a refresh. For a production order handoff, set `VITE_API_BASE_URL` to the HTTPS URL of the API server. If it is absent, checkout intentionally stays in the no-payment demo mode.
+`vite.config.ts` has portable defaults for local/Vercel builds; the Replit preview may override the port automatically. The root `vercel.json` rewrites page deep links back to the Vite entry point so routes such as `/admin`, `/menu`, and `/order` survive a refresh without intercepting `/api/*`. Because the Vercel API is on the same domain, `VITE_API_BASE_URL` should normally be left unset so the client uses `/api`.
 
 ## Public routes
 
@@ -58,7 +59,7 @@ Required production environment:
 
 - `DATABASE_URL` — PostgreSQL connection string for the API/schema package
 - `ADMIN_API_TOKEN` — secret token required by all `/api/admin/*` routes; send it as `Authorization: Bearer ...` or `x-admin-token`
-- `VITE_API_BASE_URL` — public HTTPS API base URL used by the storefront order handoff
+- `VITE_API_BASE_URL` — optional public HTTPS API base URL; leave unset for the same-origin Vercel API
 - `PAYMENT_CASH_APP_INSTRUCTIONS`, `PAYMENT_VENMO_INSTRUCTIONS`, `PAYMENT_ZELLE_INSTRUCTIONS`, `PAYMENT_OTHER_INSTRUCTIONS` — server-side instructions returned with manual payment orders
 - `VITE_PAYMENT_CASH_APP_INSTRUCTIONS`, `VITE_PAYMENT_VENMO_INSTRUCTIONS`, `VITE_PAYMENT_ZELLE_INSTRUCTIONS`, `VITE_PAYMENT_OTHER_INSTRUCTIONS` — public checkout copy for the same configured manual payment instructions
 
