@@ -1,0 +1,47 @@
+The production checkout is STILL failing on the live Vercel site with the message:
+
+“The order service could not accept this order.”
+
+Do not change any design, layout, menu content, pricing, admin design, or other working functionality.
+
+I need you to debug ONLY the live production order submission path.
+
+Requirements:
+
+1. Reproduce the failure on the actual deployed Vercel site, not only inside Replit preview.
+2. Inspect the exact network request made when “I’VE SEEN IT, WILL SEND PAYMENT” is clicked.
+3. Identify the exact production endpoint being called.
+4. Capture the actual HTTP status code and response body from that failed request.
+5. Check Vercel function/runtime logs for that request.
+6. Determine whether the failure is caused by:
+    * missing production environment variables
+    * incorrect API route path
+    * serverless function configuration
+    * database connection failure
+    * schema/validation mismatch
+    * CORS
+    * Replit-only backend dependency
+    * unavailable persistent storage
+    * malformed request payload
+7. Fix the ROOT CAUSE. Do not replace it with a frontend-only success message or fake local order.
+8. The submitted order must be stored in the same persistent production data source that the admin dashboard reads.
+9. After fixing it, place a brand-new test order through the live Vercel URL.
+10. Confirm all of the following before saying this is complete:
+    * checkout returns success
+    * a real order number is created
+    * confirmation screen loads
+    * the order persists after refresh
+    * the exact order appears in /admin/orders
+    * admin still sees it after refresh
+
+Also fix the existing Vercel /admin route if it is still returning a Vercel 404. Directly opening and refreshing /admin, /admin/orders, and /admin/dashboard must work in production.
+
+Do not tell me it is fixed until you have personally verified the complete live flow on Vercel.
+
+At the end, tell me:
+
+* the exact root cause
+* the exact HTTP error/status that was happening
+* what files you changed
+* whether any Vercel environment variables must be added manually
+* whether a production database/storage service is required
