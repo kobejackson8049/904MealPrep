@@ -44,7 +44,7 @@ export default function AdminApp() {
   const [orders, setOrders] = useState(demoOrders);
   const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<AdminCustomer | null>(null);
-  const [menuMeals, setMenuMeals] = useState<AdminMenuMeal[]>(() => weeklyMenu.meals.map((meal) => ({ ...meal, available: true })));
+  const [menuMeals, setMenuMeals] = useState<AdminMenuMeal[]>(() => weeklyMenu.meals.map((meal) => ({ ...meal, price: meal.price + (meal.premium ? 2 : 0), available: true })));
   const [selectedPrep, setSelectedPrep] = useState<number | null>(null);
 
   if (!authenticated) return <AdminAuthGate previewAllowed={previewAllowed} onPreview={() => setAuthenticated(true)} />;

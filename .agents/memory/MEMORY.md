@@ -1,1 +1,2 @@
 - [Artifact workflow port recovery](artifact-workflow-ports.md) — clear stale listeners before changing managed artifact routing.
+- [Compiled UI marker checks](compiled-ui-markers.md) — verify distinctive changed UI text in the production bundle when preview output seems stale.
