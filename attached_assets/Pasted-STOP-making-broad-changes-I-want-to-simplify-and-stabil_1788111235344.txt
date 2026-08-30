@@ -1,0 +1,92 @@
+STOP making broad changes.
+
+I want to simplify and stabilize this project before anything else.
+
+There are THREE separate issues:
+
+1. Admin login is overcomplicated.
+2. Checkout cannot save orders because the production persistent database is not configured or unavailable.
+3. Git has a merge conflict between the Replit workspace and GitHub.
+
+Do NOT redesign the site, change the menu, change pricing, change styling, or add new features.
+
+ADMIN LOGIN
+
+Replace the current “Owner Access Token” login with a normal password login.
+
+The owner should simply visit /admin, enter a password, and click Sign In.
+
+Requirements:
+
+* Use a server-side environment variable named ADMIN_PASSWORD.
+* Never expose the password in frontend code or the repository.
+* After successful login, create a secure server-side session using an HttpOnly cookie.
+* Protect all /admin/* routes and protected admin API routes.
+* Do not require the owner to copy/paste access tokens.
+* Add normal “Incorrect password” messaging.
+* Add logout functionality.
+* Keep the current admin dashboard design exactly the same.
+
+This is currently a single-owner business, so do not overengineer multi-user authentication.
+
+CHECKOUT / DATABASE
+
+The live checkout currently says:
+
+“Persistent database is not configured or is temporarily unavailable.”
+
+Do not hide this error or fake a successful order.
+
+Diagnose the actual production database configuration.
+
+Tell me:
+
+* What database technology the project is currently expecting.
+* What production environment variables are missing.
+* Whether a production database currently exists.
+* Whether the Replit preview was using storage that does not exist on Vercel.
+
+Fix checkout so:
+
+Customer submits order → order is persisted → confirmation is returned → exact order appears in admin → order remains after refreshing both pages.
+
+The customer site and admin must use the SAME persistent database.
+
+Do not use browser localStorage or in-memory storage as a production database.
+
+If an external production database account must be created or connected by me, STOP and tell me exactly what I need to create and what environment variables need to be added before continuing.
+
+GITHUB / MERGE CONFLICT
+
+There is currently a Git MERGE_CONFLICT.
+
+Do NOT blindly pull, push, sync, force-push, reset, or overwrite either side.
+
+First:
+
+1. Inspect the local branch and origin/main.
+2. Identify why Git says there are approximately 18 remote changes and 5 local changes.
+3. List the conflicting files.
+4. Determine which version contains the latest working site and latest fixes.
+5. Preserve all current project work.
+
+Before resolving anything, explain the safest merge strategy to me.
+
+Do not force-push.
+Do not delete commits.
+Do not overwrite GitHub.
+Do not overwrite the Replit workspace.
+
+IMPORTANT
+
+Do not deploy again yet.
+
+First give me a diagnosis of:
+
+* database issue
+* admin authentication issue
+* Git conflict
+
+and tell me exactly what needs to happen next.
+
+Wait for my approval before performing another Git sync or production deployment.
