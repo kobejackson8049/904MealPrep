@@ -77,6 +77,18 @@ const settingsBody = z.object({
   venmoEnabled: z.boolean().default(true),
   zelleEnabled: z.boolean().default(true),
 });
+const galleryBody = z.object({
+  title: z.string().min(1).max(140),
+  description: z.string().max(1000).default(""),
+  mediaType: z.enum(["image", "video"]),
+  mediaPath: z.string().min(1),
+  posterPath: z.string().default(""),
+  linkedMealId: z.string().nullable().default(null),
+  category: z.string().max(80).default(""),
+  status: z.enum(["draft", "published", "archived"]).default("draft"),
+  displayOrder: z.coerce.number().int().nonnegative().default(0),
+  featured: z.boolean().default(false),
+});
 
 async function loadDb(): Promise<DbModule> {
   return import("@workspace/db");
@@ -84,6 +96,23 @@ async function loadDb(): Promise<DbModule> {
 
 function singleParam(value: string | string[]) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function privateObjectLocation(objectId: string) {
+  const raw = process.env.PRIVATE_OBJECT_DIR || "";
+  const parts = raw.replace(/^\/+/, "").split("/");
+  if (parts.length < 2) throw new Error("PRIVATE_OBJECT_DIR is not configured");
+  return { bucketName: parts[0], objectName: `${parts.slice(1).join("/")}/gallery/${objectId}` };
+}
+async function signedObjectUrl(bucketName: string, objectName: string, method: "GET" | "PUT") {
+  const response = await fetch("http://127.0.0.1:1106/object-storage/signed-object-url", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ bucket_name: bucketName, object_name: objectName, method, expires_at: new Date(Date.now() + 15 * 60_000).toISOString() }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!response.ok) throw new Error(`Storage signing failed: ${response.status}`);
+  return (await response.json() as { signed_url: string }).signed_url;
 }
 
 function hasAdminToken(req: Request) {
@@ -519,6 +548,61 @@ router.get("/menus/current", async (_req, res): Promise<void> => {
       venmo: { enabled: settings.venmoEnabled, handle: settings.venmoHandle, qrPath: settings.venmoQrPath },
       zelle: { enabled: settings.zelleEnabled, handle: settings.zelleContact, qrPath: settings.zelleQrPath },
     } : null });
+  });
+});
+
+router.get("/gallery", async (_req, res): Promise<void> => {
+  await withDatabase(res, async ({ db, galleryMediaTable, mealsTable, weeklyMenusTable }) => {
+    const rows = await db.select().from(galleryMediaTable).where(eq(galleryMediaTable.status, "published")).orderBy(galleryMediaTable.displayOrder);
+    const [menu] = await db.select().from(weeklyMenusTable).where(eq(weeklyMenusTable.status, "published")).orderBy(desc(weeklyMenusTable.publishedAt)).limit(1);
+    const meals = menu ? await db.select({ id: mealsTable.id, name: mealsTable.name }).from(mealsTable).where(and(eq(mealsTable.menuId, menu.id), eq(mealsTable.available, true), eq(mealsTable.archived, false))) : [];
+    res.json(rows.map((row) => ({ ...row, linkedMeal: row.linkedMealId ? meals.find((meal) => meal.id === row.linkedMealId) || null : null })));
+  });
+});
+
+router.post("/admin/gallery/upload-url", requireAdmin, async (req, res): Promise<void> => {
+  const parsed = z.object({ name: z.string().min(1).max(200), size: z.number().int().positive().max(50 * 1024 * 1024), contentType: z.string().regex(/^(image\/(jpeg|png|webp|gif)|video\/(mp4|webm|quicktime))$/) }).safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Use a JPG, PNG, WebP, GIF, MP4, WebM, or MOV file up to 50 MB." }); return; }
+  try {
+    const objectId = `${randomUUID()}-${parsed.data.name.replace(/[^a-zA-Z0-9._-]/g, "-")}`;
+    const location = privateObjectLocation(objectId);
+    res.json({ uploadURL: await signedObjectUrl(location.bucketName, location.objectName, "PUT"), objectPath: `/storage/objects/${encodeURIComponent(objectId)}` });
+  } catch (error) { res.status(503).json({ error: error instanceof Error ? error.message : "Storage unavailable" }); }
+});
+router.get("/storage/objects/:id", async (req, res): Promise<void> => {
+  try {
+    const location = privateObjectLocation(singleParam(req.params.id));
+    res.redirect(307, await signedObjectUrl(location.bucketName, location.objectName, "GET"));
+  } catch { res.status(404).json({ error: "Media not found" }); }
+});
+
+router.get("/admin/gallery", requireAdmin, async (_req, res): Promise<void> => {
+  await withDatabase(res, async ({ db, galleryMediaTable }) => {
+    res.json(await db.select().from(galleryMediaTable).orderBy(galleryMediaTable.displayOrder));
+  });
+});
+router.post("/admin/gallery", requireAdmin, async (req, res): Promise<void> => {
+  const parsed = galleryBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  await withDatabase(res, async ({ db, galleryMediaTable }) => {
+    const [row] = await db.insert(galleryMediaTable).values({ id: randomUUID(), ...parsed.data }).returning();
+    res.status(201).json(row);
+  });
+});
+router.patch("/admin/gallery/:id", requireAdmin, async (req, res): Promise<void> => {
+  const parsed = galleryBody.partial().safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  await withDatabase(res, async ({ db, galleryMediaTable }) => {
+    const [row] = await db.update(galleryMediaTable).set({ ...parsed.data, updatedAt: new Date() }).where(eq(galleryMediaTable.id, singleParam(req.params.id))).returning();
+    if (!row) { res.status(404).json({ error: "Gallery item not found" }); return; }
+    res.json(row);
+  });
+});
+router.delete("/admin/gallery/:id", requireAdmin, async (req, res): Promise<void> => {
+  await withDatabase(res, async ({ db, galleryMediaTable }) => {
+    const [row] = await db.delete(galleryMediaTable).where(eq(galleryMediaTable.id, singleParam(req.params.id))).returning();
+    if (!row) { res.status(404).json({ error: "Gallery item not found" }); return; }
+    res.json({ deleted: true });
   });
 });
 

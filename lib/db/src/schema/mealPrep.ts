@@ -163,6 +163,21 @@ export const emailEventsTable = pgTable("meal_prep_email_events", {
   ...timestamps,
 });
 
+export const galleryMediaTable = pgTable("meal_prep_gallery_media", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  mediaType: text("media_type").notNull(),
+  mediaPath: text("media_path").notNull(),
+  posterPath: text("poster_path").notNull().default(""),
+  linkedMealId: text("linked_meal_id").references(() => mealsTable.id, { onDelete: "set null" }),
+  category: text("category").notNull().default(""),
+  status: text("status").notNull().default("draft"),
+  displayOrder: integer("display_order").notNull().default(0),
+  featured: boolean("featured").notNull().default(false),
+  ...timestamps,
+});
+
 export const insertAdminUserSchema = createInsertSchema(adminUsersTable).omit({ createdAt: true, updatedAt: true });
 export const insertCustomerSchema = createInsertSchema(customersTable).omit({ createdAt: true, updatedAt: true });
 export const insertWeeklyMenuSchema = createInsertSchema(weeklyMenusTable).omit({ createdAt: true, updatedAt: true });
@@ -186,4 +201,5 @@ export type BusinessSettings = typeof businessSettingsTable.$inferSelect;
 export type PaymentConfirmation = typeof paymentConfirmationsTable.$inferSelect;
 export type AdminNotification = typeof adminNotificationsTable.$inferSelect;
 export type EmailEvent = typeof emailEventsTable.$inferSelect;
+export type GalleryMedia = typeof galleryMediaTable.$inferSelect;
 export type CreateOrder = z.infer<typeof insertOrderSchema>;

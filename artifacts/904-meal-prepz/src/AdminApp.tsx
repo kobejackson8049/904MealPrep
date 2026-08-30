@@ -4,7 +4,7 @@ import { useLocation } from 'wouter';
 import { demoMeals, demoOrders, deriveCustomers, derivePrepTotals, popularMeals, weeklyAnalytics, type AdminCustomer, type AdminMenuMeal, type AdminOrder, type AdminOrderStatus, type PaymentMethod, type PaymentStatus } from '@/data/adminDemo';
 import { weeklyMenu, type MenuCategory } from '@/data/weeklyMenu';
 
-type AdminTab = 'Overview' | 'Orders' | 'Kitchen prep' | 'Customers' | 'Weekly menu' | 'Analytics' | 'Fulfillment' | 'Payments' | 'Settings' | 'Meal library';
+type AdminTab = 'Overview' | 'Orders' | 'Kitchen prep' | 'Customers' | 'Weekly menu' | 'Analytics' | 'Fulfillment' | 'Payments' | 'Settings' | 'Meal library' | 'Gallery';
 type Pricing = { standardPrice: number; premiumCharge: number };
 type MenuDraft = {
   weekLabel: string;
@@ -35,6 +35,7 @@ const tabs: Array<{ id: AdminTab; route: string; icon: typeof LayoutDashboard }>
   { id: 'Orders', route: '/admin/orders', icon: ClipboardList },
   { id: 'Kitchen prep', route: '/admin/kitchen-prep', icon: ChefHat },
   { id: 'Meal library', route: '/admin/meals', icon: UtensilsCrossed },
+  { id: 'Gallery', route: '/admin/gallery', icon: Eye },
   { id: 'Weekly menu', route: '/admin/weekly-menu', icon: CalendarDays },
   { id: 'Customers', route: '/admin/customers', icon: Users },
   { id: 'Analytics', route: '/admin/analytics', icon: BarChart3 },
@@ -345,6 +346,7 @@ export default function AdminApp() {
           {tab === 'Fulfillment' && <Fulfillment orders={orders} onStatusChange={changeStatus} />}
           {tab === 'Payments' && <Payments orders={orders} onMarkPaid={markPaid} />}
           {tab === 'Settings' && <SettingsPage settings={settings} onSave={saveSettings} />}
+          {tab === 'Gallery' && <GalleryManager token={apiToken} meals={meals} />}
         </main>
       </div>
       {selectedOrder && <OrderDetail order={selectedOrder} onClose={() => setSelectedOrderId(null)} onStatusChange={changeStatus} onMarkPaid={markPaid} />}
@@ -457,6 +459,43 @@ function SettingsPage({ settings, onSave }: { settings: Settings; onSave: (setti
     <div className="mt-8 border-t border-[#173c3a]/10 pt-6"><h3 className="text-sm font-extrabold">Manual payment methods</h3><div className="mt-4 grid gap-5 lg:grid-cols-3">{paymentFields.map(([label, handle, enabled, qr]) => <div key={label} className="border border-[#173c3a]/10 p-4"><label className="text-xs font-bold uppercase tracking-[.12em]">{label} handle<input value={draft[handle]} onChange={(event) => setDraft({ ...draft, [handle]: event.target.value })} className={inputClass} /></label><label className="mt-3 block text-xs font-bold uppercase tracking-[.12em]">QR object path<input value={draft[qr]} onChange={(event) => setDraft({ ...draft, [qr]: event.target.value })} className={inputClass} placeholder="/objects/payment-qr/..." /></label><label className="mt-3 flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={draft[enabled]} onChange={(event) => setDraft({ ...draft, [enabled]: event.target.checked })} /> Enabled</label></div>)}</div></div>
     <div className="mt-8 grid gap-4 border-t border-[#173c3a]/10 pt-6 sm:grid-cols-2"><label className="text-xs font-bold uppercase tracking-[.12em]">Standard price<input type="number" min="0" step="0.01" value={draft.pricing.standardPrice} onChange={(event) => setDraft({ ...draft, pricing: { ...draft.pricing, standardPrice: Number(event.target.value) } })} className={inputClass} /></label><label className="text-xs font-bold uppercase tracking-[.12em]">Premium surcharge<input type="number" min="0" step="0.01" value={draft.pricing.premiumCharge} onChange={(event) => setDraft({ ...draft, pricing: { ...draft.pricing, premiumCharge: Number(event.target.value) } })} className={inputClass} /></label></div>
     <button type="button" onClick={() => onSave(draft)} className="mt-7 bg-[#173c3a] px-5 py-3 text-xs font-bold uppercase tracking-[.12em] text-white">Save settings</button>
+  </Panel>;
+}
+
+type GalleryRecord = { id: string; title: string; description: string; mediaType: 'image' | 'video'; mediaPath: string; posterPath: string; linkedMealId: string | null; category: string; status: 'draft' | 'published' | 'archived'; displayOrder: number; featured: boolean };
+function GalleryManager({ token, meals }: { token: string; meals: AdminMenuMeal[] }) {
+  const api = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+  const [items, setItems] = useState<GalleryRecord[]>([]);
+  const [draft, setDraft] = useState<Partial<GalleryRecord> | null>(null);
+  const [error, setError] = useState('');
+  async function load() {
+    const response = await fetch(`${api}/admin/gallery`, { headers: { Authorization: `Bearer ${token}` } });
+    if (response.ok) setItems(await response.json());
+  }
+  useEffect(() => { void load(); }, [token]);
+  async function save() {
+    if (!draft?.title || !draft.mediaPath || !draft.mediaType) { setError('Title, media type, and a persistent media path are required.'); return; }
+    const response = await fetch(`${api}/admin/gallery${draft.id ? `/${draft.id}` : ''}`, { method: draft.id ? 'PATCH' : 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(draft) });
+    if (!response.ok) { setError((await response.json()).error || 'Could not save media.'); return; }
+    setDraft(null); setError(''); void load();
+  }
+  async function update(id: string, changes: Partial<GalleryRecord>) {
+    await fetch(`${api}/admin/gallery/${id}`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(changes) }); void load();
+  }
+  async function upload(file: File) {
+    const response = await fetch(`${api}/admin/gallery/upload-url`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }) });
+    const payload = await response.json();
+    if (!response.ok) { setError(payload.error || 'Upload could not start.'); return; }
+    const uploaded = await fetch(payload.uploadURL, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+    if (!uploaded.ok) { setError('Upload failed before the media was saved.'); return; }
+    setDraft((current) => ({ ...current, mediaPath: `${api}${payload.objectPath}`, mediaType: file.type.startsWith('video/') ? 'video' : 'image' }));
+  }
+  return <Panel title="Gallery manager" eyebrow="Persistent public media" action={<div className="flex gap-2"><label className="cursor-pointer border border-[#173c3a] px-4 py-3 text-xs font-bold uppercase tracking-[.12em]">Upload<input type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) { setDraft({ title: file.name.replace(/\.[^.]+$/, ''), description: '', mediaType: file.type.startsWith('video/') ? 'video' : 'image', mediaPath: '', posterPath: '', linkedMealId: null, category: '', status: 'draft', displayOrder: items.length, featured: false }); void upload(file); } }} /></label><button type="button" onClick={() => setDraft({ title: '', description: '', mediaType: 'image', mediaPath: '', posterPath: '', linkedMealId: null, category: '', status: 'draft', displayOrder: items.length, featured: false })} className="bg-[#173c3a] px-4 py-3 text-xs font-bold uppercase tracking-[.12em] text-white">+ Add media</button></div>}>
+    {draft && <div className="mb-6 border border-[#e7d58d] bg-[#fff9df] p-5"><div className="grid gap-4 sm:grid-cols-2"><label className="text-xs font-bold uppercase tracking-[.1em]">Title<input value={draft.title || ''} onChange={(e) => setDraft({ ...draft, title: e.target.value })} className="mt-2 w-full border bg-white p-3 text-sm normal-case tracking-normal" /></label><label className="text-xs font-bold uppercase tracking-[.1em]">Media path / uploaded object URL<input value={draft.mediaPath || ''} onChange={(e) => setDraft({ ...draft, mediaPath: e.target.value })} placeholder="/objects/gallery/..." className="mt-2 w-full border bg-white p-3 text-sm normal-case tracking-normal" /></label><label className="text-xs font-bold uppercase tracking-[.1em]">Type<select value={draft.mediaType} onChange={(e) => setDraft({ ...draft, mediaType: e.target.value as GalleryRecord['mediaType'] })} className="mt-2 w-full border bg-white p-3 text-sm normal-case tracking-normal"><option value="image">Image</option><option value="video">Video</option></select></label><label className="text-xs font-bold uppercase tracking-[.1em]">Linked meal<select value={draft.linkedMealId || ''} onChange={(e) => setDraft({ ...draft, linkedMealId: e.target.value || null })} className="mt-2 w-full border bg-white p-3 text-sm normal-case tracking-normal"><option value="">No linked meal</option>{meals.map((meal) => <option key={meal.id} value={meal.id}>{meal.name}</option>)}</select></label><label className="text-xs font-bold uppercase tracking-[.1em]">Category<input value={draft.category || ''} onChange={(e) => setDraft({ ...draft, category: e.target.value })} className="mt-2 w-full border bg-white p-3 text-sm normal-case tracking-normal" /></label><label className="text-xs font-bold uppercase tracking-[.1em]">Poster path<input value={draft.posterPath || ''} onChange={(e) => setDraft({ ...draft, posterPath: e.target.value })} className="mt-2 w-full border bg-white p-3 text-sm normal-case tracking-normal" /></label></div><label className="mt-4 block text-xs font-bold uppercase tracking-[.1em]">Description<textarea value={draft.description || ''} onChange={(e) => setDraft({ ...draft, description: e.target.value })} className="mt-2 min-h-20 w-full border bg-white p-3 text-sm normal-case tracking-normal" /></label><div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={save} className="bg-[#173c3a] px-4 py-3 text-xs font-bold uppercase tracking-[.1em] text-white">Save media</button><button type="button" onClick={() => setDraft(null)} className="border px-4 py-3 text-xs font-bold uppercase tracking-[.1em]">Cancel</button>{error && <span className="p-3 text-sm text-[#a14935]">{error}</span>}</div></div>}
+    <div className="space-y-3">{items.map((item) => <div key={item.id} className="grid gap-3 border border-[#173c3a]/10 bg-white p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+      <div>{item.mediaType === 'video' ? <video src={item.mediaPath} poster={item.posterPath || undefined} muted playsInline controls preload="metadata" className="mb-3 h-24 w-40 object-cover" /> : <img src={item.mediaPath} alt="" loading="lazy" className="mb-3 h-24 w-40 object-cover" />}<strong>{item.title}</strong><p className="text-xs text-[#738681]">{item.category || 'Uncategorized'}{item.linkedMealId ? ` / linked meal: ${meals.find((m) => m.id === item.linkedMealId)?.name || 'past meal'}` : ''}</p><p className="text-xs text-[#738681]">Order {item.displayOrder} / {item.featured ? 'Featured' : 'Standard'}</p></div>
+      <div className="flex flex-wrap gap-2"><select value={item.status} onChange={(e) => void update(item.id, { status: e.target.value as GalleryRecord['status'] })} className="border p-2 text-xs"><option>draft</option><option>published</option><option>archived</option></select><button type="button" onClick={() => void update(item.id, { featured: !item.featured })} className="border px-3 py-2 text-xs font-bold">{item.featured ? 'Unfeature' : 'Feature'}</button><button type="button" onClick={() => void update(item.id, { displayOrder: Math.max(0, item.displayOrder - 1) })} className="border px-3 py-2 text-xs font-bold">Move up</button><button type="button" onClick={() => void update(item.id, { displayOrder: item.displayOrder + 1 })} className="border px-3 py-2 text-xs font-bold">Move down</button><button type="button" onClick={() => setDraft(item)} className="border px-3 py-2 text-xs font-bold uppercase">Edit</button><button type="button" onClick={() => { if (window.confirm('Permanently delete this media? This cannot be undone.')) void fetch(`${api}/admin/gallery/${item.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }).then(load); }} className="border border-[#a14935] px-3 py-2 text-xs font-bold uppercase text-[#a14935]">Delete</button></div>
+    </div>)}</div>
   </Panel>;
 }
 
