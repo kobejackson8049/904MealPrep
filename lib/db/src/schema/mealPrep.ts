@@ -15,6 +15,12 @@ export const adminUsersTable = pgTable("meal_prep_admin_users", {
   ...timestamps,
 });
 
+export const adminSessionsTable = pgTable("meal_prep_admin_sessions", {
+  id: text("id").primaryKey(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const customersTable = pgTable("meal_prep_customers", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
