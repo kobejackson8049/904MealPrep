@@ -173,6 +173,11 @@ function OrderPage({ orderingOpen, countdown }: { orderingOpen: boolean; countdo
   const [submitting, setSubmitting] = useState(false);
   const [orderError, setOrderError] = useState('');
   useEffect(() => { localStorage.setItem('904-week', JSON.stringify(selections)); }, [selections]);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('preview') !== 'payment') return;
+    const timeout = window.setTimeout(() => document.getElementById('checkout-heading')?.scrollIntoView({ behavior: 'auto', block: 'start' }), 0);
+    return () => window.clearTimeout(timeout);
+  }, []);
   const items = useMemo(() => weeklyMenu.meals.filter((meal) => selections[meal.id] > 0).map((meal) => ({ meal, quantity: selections[meal.id] })), [selections]);
   const totalMeals = items.reduce((sum, item) => sum + item.quantity, 0);
   const mealSubtotal = items.reduce((sum, item) => sum + item.meal.price * item.quantity, 0);
