@@ -115,6 +115,15 @@ function normalizeApiOrder(raw: Record<string, any>): AdminOrder {
     date: new Date(raw.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
   };
 }
+function readPreviewOrders(): AdminOrder[] {
+  const overrides = readStorage<Record<string, Partial<AdminOrder>>>('904-preview-order-overrides', {});
+  return [...readStorage<Array<Record<string, any>>>('904-preview-api-orders', []).map(normalizeApiOrder), ...demoOrders]
+    .map((order) => ({ ...order, ...overrides[order.id] }));
+}
+function persistPreviewOrderOverride(id: string, changes: Partial<AdminOrder>) {
+  const overrides = readStorage<Record<string, Partial<AdminOrder>>>('904-preview-order-overrides', {});
+  localStorage.setItem('904-preview-order-overrides', JSON.stringify({ ...overrides, [id]: { ...overrides[id], ...changes } }));
+}
 function createDraft(meals: AdminMenuMeal[]): MenuDraft {
   return {
     weekLabel: 'Week of August 24–30',
@@ -150,11 +159,11 @@ export default function AdminApp() {
   const previewAllowed = import.meta.env.DEV || import.meta.env.VITE_ADMIN_PREVIEW === 'true';
   const [apiToken, setApiToken] = useState(() => sessionStorage.getItem('904-admin-token') || '');
   const [activeMenuId, setActiveMenuId] = useState(weeklyMenu.id);
-  const [authenticated, setAuthenticated] = useState(() => Boolean(apiToken) || (previewAllowed && new URLSearchParams(window.location.search).get('preview') === '1'));
+  const [authenticated, setAuthenticated] = useState(() => Boolean(apiToken) || (previewAllowed && (new URLSearchParams(window.location.search).get('preview') === '1' || sessionStorage.getItem('904-admin-preview') === '1')));
   const [location, setLocation] = useLocation();
   const tab = tabForRoute(location);
   const [mobileNav, setMobileNav] = useState(false);
-  const [orders, setOrders] = useState<AdminOrder[]>(() => [...readStorage<Array<Record<string, any>>>('904-preview-api-orders', []).map(normalizeApiOrder), ...demoOrders]);
+  const [orders, setOrders] = useState<AdminOrder[]>(readPreviewOrders);
   const [meals, setMeals] = useState<AdminMenuMeal[]>(demoMeals);
   const [menuDraft, setMenuDraft] = useState<MenuDraft>(() => readStorage('904-menu-draft', createDraft(demoMeals)));
   const [publishedMealIds, setPublishedMealIds] = useState<string[]>(() => readStorage<string[]>('904-published-meal-ids', demoMeals.map((meal) => meal.id)));
@@ -169,6 +178,12 @@ export default function AdminApp() {
   const prep = useMemo(() => derivePrepTotals(orders), [orders]);
   const selectedOrder = orders.find((order) => order.id === selectedOrderId) || null;
   const selectedCustomer = customers.find((customer) => customer.id === selectedCustomerId) || null;
+
+  useEffect(() => {
+    if (previewAllowed && new URLSearchParams(window.location.search).get('preview') === '1' && !apiToken) {
+      sessionStorage.setItem('904-admin-preview', '1');
+    }
+  }, [apiToken, previewAllowed]);
 
   useEffect(() => {
     if (!authenticated || !apiToken) return;
@@ -239,9 +254,14 @@ export default function AdminApp() {
       const apiStatus = status.toLowerCase().replaceAll(' ', '_');
       const response = await fetch(`${apiBase()}/admin/orders/${id}/status`, { method: 'PATCH', headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: apiStatus }) });
       if (!response.ok) { notify('Order status could not be saved.'); return; }
+    } else {
+      persistPreviewOrderOverride(id, { status });
     }
     setOrders((current) => current.map((order) => order.id === id ? { ...order, status } : order));
-    notify(`Order ${orders.find((order) => order.id === id)?.orderNumber || ''} marked ${status.toLowerCase()}.`);
+    const changedOrder = orders.find((order) => order.id === id);
+    notify(status === 'Confirmed' && changedOrder?.payment !== 'Paid'
+      ? `Order ${changedOrder?.orderNumber || ''} is confirmed. Use “Confirm payment received” after verifying the transfer.`
+      : `Order ${changedOrder?.orderNumber || ''} marked ${status.toLowerCase()}.`);
   }
   async function markPaid(id: string) {
     const target = orders.find((order) => order.id === id);
@@ -250,8 +270,7 @@ export default function AdminApp() {
       const response = await fetch(`${apiBase()}/admin/orders/${id}/payment`, { method: 'PATCH', headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'paid' }) });
       if (!response.ok) { notify('Payment status could not be saved.'); return; }
     } else {
-      const previewOrders = readStorage<Array<Record<string, any>>>('904-preview-api-orders', []);
-      localStorage.setItem('904-preview-api-orders', JSON.stringify(previewOrders.map((order) => order.id === id ? { ...order, paymentStatus: 'paid', status: 'confirmed', paymentConfirmedAt: new Date().toISOString(), paymentConfirmedBy: 'owner' } : order)));
+      persistPreviewOrderOverride(id, { payment: 'Paid', status: 'Confirmed', paymentConfirmedAt: new Date().toISOString(), paymentConfirmedBy: 'owner' });
     }
     setOrders((current) => current.map((order) => order.id === id && order.payment !== 'Refunded' ? { ...order, payment: 'Paid', status: 'Confirmed', paymentConfirmedAt: new Date().toISOString(), paymentConfirmedBy: 'owner' } : order));
     notify('Payment status updated. Revenue, customer spend, and analytics recalculated.');
@@ -389,7 +408,7 @@ function Orders({ orders, onOrderClick, onStatusChange, onMarkPaid }: { orders: 
 }
 
 function OrderTable({ orders, onOrderClick, onStatusChange, onMarkPaid, compact = false }: { orders: AdminOrder[]; onOrderClick: (order: AdminOrder) => void; onStatusChange?: (id: string, status: AdminOrderStatus) => void; onMarkPaid?: (id: string) => void; compact?: boolean }) {
-  return <table className="w-full min-w-[900px] text-left text-sm"><thead><tr className="border-b border-[#173c3a]/10 text-[10px] font-bold uppercase tracking-[.12em] text-[#738681]"><th className="pb-3 pr-4">Order</th><th className="pb-3 pr-4">Customer</th><th className="pb-3 pr-4">Meals</th><th className="pb-3 pr-4">Total</th><th className="pb-3 pr-4">Fulfillment</th><th className="pb-3 pr-4">Payment</th><th className="pb-3">Status</th></tr></thead><tbody>{orders.map((order) => <tr key={order.id} className="border-b border-[#173c3a]/8 last:border-0"><td className="py-4 pr-4"><button type="button" onClick={() => onOrderClick(order)} className="font-bold text-[#27625a] hover:text-[#b28b17]">{order.orderNumber}</button><span className="mt-1 block text-xs text-[#738681]">{order.date}</span></td><td className="py-4 pr-4"><p className="font-semibold">{order.customer}</p><p className="mt-1 text-xs text-[#738681]">{order.phone}</p></td><td className="max-w-[210px] py-4 pr-4 text-xs text-[#526863]">{order.meals}<span className="mt-1 block font-bold text-[#173c3a]">{order.mealCount} meals</span></td><td className="py-4 pr-4 font-bold">{money(order.total)}</td><td className="py-4 pr-4"><span className="inline-flex items-center gap-1.5 text-xs font-semibold"><span className={`h-2 w-2 rounded-full ${order.fulfillment === 'Pickup' ? 'bg-[#27625a]' : 'bg-[#e2af23]'}`} />{order.fulfillment}</span><span className="mt-1 block text-xs text-[#738681]">{order.window}</span></td><td className="py-4 pr-4"><StatusPill label={order.payment} kind={order.payment === 'Paid' ? 'green' : order.payment === 'Refunded' ? 'gray' : 'yellow'} /><span className="mt-1 block text-[10px] font-semibold text-[#738681]">{order.paymentMethod}</span>{onMarkPaid && order.payment !== 'Paid' && order.payment !== 'Refunded' && <button type="button" onClick={() => onMarkPaid(order.id)} className="mt-2 text-[10px] font-bold uppercase tracking-[.08em] text-[#27625a] hover:text-[#b28b17]" data-testid={`button-mark-paid-${order.id}`}>Mark paid</button>}</td><td className="py-4">{onStatusChange && !compact ? <select value={order.status} onChange={(event) => onStatusChange(order.id, event.target.value as AdminOrderStatus)} className="border border-[#173c3a]/15 bg-transparent px-2 py-1.5 text-xs font-semibold outline-none" aria-label={`Update status for ${order.orderNumber}`} data-testid={`select-status-${order.id}`}>{statuses.map((status) => <option key={status}>{status}</option>)}</select> : <StatusPill label={order.status} kind={order.status === 'Completed' ? 'green' : order.status === 'New' ? 'yellow' : order.status === 'Cancelled' ? 'red' : 'gray'} />}</td></tr>)}</tbody></table>;
+  return <table className="w-full min-w-[900px] text-left text-sm"><thead><tr className="border-b border-[#173c3a]/10 text-[10px] font-bold uppercase tracking-[.12em] text-[#738681]"><th className="pb-3 pr-4">Order</th><th className="pb-3 pr-4">Customer</th><th className="pb-3 pr-4">Meals</th><th className="pb-3 pr-4">Total</th><th className="pb-3 pr-4">Fulfillment</th><th className="pb-3 pr-4">Payment</th><th className="pb-3">Fulfillment status</th></tr></thead><tbody>{orders.map((order) => <tr key={order.id} className="border-b border-[#173c3a]/8 last:border-0"><td className="py-4 pr-4"><button type="button" onClick={() => onOrderClick(order)} className="font-bold text-[#27625a] hover:text-[#b28b17]">{order.orderNumber}</button><span className="mt-1 block text-xs text-[#738681]">{order.date}</span></td><td className="py-4 pr-4"><p className="font-semibold">{order.customer}</p><p className="mt-1 text-xs text-[#738681]">{order.phone}</p></td><td className="max-w-[210px] py-4 pr-4 text-xs text-[#526863]">{order.meals}<span className="mt-1 block font-bold text-[#173c3a]">{order.mealCount} meals</span></td><td className="py-4 pr-4 font-bold">{money(order.total)}</td><td className="py-4 pr-4"><span className="inline-flex items-center gap-1.5 text-xs font-semibold"><span className={`h-2 w-2 rounded-full ${order.fulfillment === 'Pickup' ? 'bg-[#27625a]' : 'bg-[#e2af23]'}`} />{order.fulfillment}</span><span className="mt-1 block text-xs text-[#738681]">{order.window}</span></td><td className="py-4 pr-4"><StatusPill label={order.payment} kind={order.payment === 'Paid' ? 'green' : order.payment === 'Refunded' ? 'gray' : 'yellow'} /><span className="mt-1 block text-[10px] font-semibold text-[#738681]">{order.paymentMethod}</span>{onMarkPaid && order.payment !== 'Paid' && order.payment !== 'Refunded' && <button type="button" onClick={() => onMarkPaid(order.id)} className="mt-2 text-[10px] font-bold uppercase tracking-[.08em] text-[#27625a] hover:text-[#b28b17]" data-testid={`button-mark-paid-${order.id}`}>Confirm payment received</button>}</td><td className="py-4">{onStatusChange && !compact ? <select value={order.status} onChange={(event) => onStatusChange(order.id, event.target.value as AdminOrderStatus)} className="border border-[#173c3a]/15 bg-transparent px-2 py-1.5 text-xs font-semibold outline-none" aria-label={`Update fulfillment status for ${order.orderNumber}`} data-testid={`select-status-${order.id}`}>{statuses.map((status) => <option key={status}>{status}</option>)}</select> : <StatusPill label={order.status} kind={order.status === 'Completed' ? 'green' : order.status === 'New' ? 'yellow' : order.status === 'Cancelled' ? 'red' : 'gray'} />}</td></tr>)}</tbody></table>;
 }
 
 function KitchenPrep({ orders, prep, selectedMeal, setSelectedMeal, onExport }: { orders: AdminOrder[]; prep: ReturnType<typeof derivePrepTotals>; selectedMeal: string | null; setSelectedMeal: (value: string | null) => void; onExport: () => void }) {
@@ -449,7 +468,7 @@ function FulfillmentList({ orders, type, onStatusChange }: { orders: AdminOrder[
 function Payments({ orders, onMarkPaid }: { orders: AdminOrder[]; onMarkPaid: (id: string) => void }) {
   const paid = orders.filter((order) => order.payment === 'Paid');
   const pending = orders.filter((order) => !['Square', 'Square / Apple Pay'].includes(order.paymentMethod) && (order.payment === 'Payment Pending' || order.payment === 'Unpaid'));
-  return <div className="space-y-6"><div className="grid gap-3 sm:grid-cols-3"><Metric label="Paid revenue" value={money(paid.reduce((sum, order) => sum + order.total, 0))} detail="Confirmed payments only" /><Metric label="Manual confirmations" value={String(pending.length)} detail="Square excluded" /><Metric label="Amount pending" value={money(pending.reduce((sum, order) => sum + order.total, 0))} detail="Not included in revenue" /></div><Panel title="Manual payment queue" eyebrow="Match sender before confirming"><div className="space-y-3">{pending.map((order) => <div key={order.id} className="grid gap-3 border border-[#173c3a]/10 bg-white p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-center"><div><strong>{order.orderNumber}</strong><p className="text-xs text-[#738681]">{order.customer} / {order.email}</p></div><div><p className="font-bold">{order.paymentMethod} / {money(order.total)}</p><p className="text-xs text-[#738681]">Expected sender: {order.expectedSenderName || 'Not provided'}</p><p className="text-xs text-[#738681]">Submitted: {order.paymentSubmittedAt ? new Date(order.paymentSubmittedAt).toLocaleString() : order.date}</p></div><button type="button" onClick={() => onMarkPaid(order.id)} className="bg-[#173c3a] px-4 py-3 text-[10px] font-bold uppercase tracking-[.1em] text-white" data-testid={`button-payment-mark-paid-${order.id}`}>Confirm receipt</button></div>)}</div>{!pending.length && <EmptyState title="Payment queue is clear" copy="No manual transfers are awaiting confirmation." />}</Panel></div>;
+  return <div className="space-y-6"><div className="grid gap-3 sm:grid-cols-3"><Metric label="Paid revenue" value={money(paid.reduce((sum, order) => sum + order.total, 0))} detail="Confirmed payments only" /><Metric label="Manual confirmations" value={String(pending.length)} detail="Square excluded" /><Metric label="Amount pending" value={money(pending.reduce((sum, order) => sum + order.total, 0))} detail="Not included in revenue" /></div><Panel title="Manual payment queue" eyebrow="Match sender before confirming"><div className="space-y-3">{pending.map((order) => <div key={order.id} className="grid gap-3 border border-[#173c3a]/10 bg-white p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-center"><div><strong>{order.orderNumber}</strong><p className="text-xs text-[#738681]">{order.customer} / {order.email}</p></div><div><p className="font-bold">{order.paymentMethod} / {money(order.total)}</p><p className="text-xs text-[#738681]">Expected sender: {order.expectedSenderName || 'Not provided'}</p><p className="text-xs text-[#738681]">Submitted: {order.paymentSubmittedAt ? new Date(order.paymentSubmittedAt).toLocaleString() : order.date}</p></div><button type="button" onClick={() => onMarkPaid(order.id)} className="bg-[#173c3a] px-4 py-3 text-[10px] font-bold uppercase tracking-[.1em] text-white" data-testid={`button-payment-mark-paid-${order.id}`}>Confirm payment received</button></div>)}</div>{!pending.length && <EmptyState title="Payment queue is clear" copy="No manual transfers are awaiting confirmation." />}</Panel></div>;
 }
 
 function SettingsPage({ settings, onSave }: { settings: Settings; onSave: (settings: Settings) => void }) {
