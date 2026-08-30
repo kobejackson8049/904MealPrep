@@ -1,0 +1,169 @@
+IMPORTANT BUSINESS MODEL UPDATE:
+
+Do not treat 904 Meal Prepz as a traditional ecommerce store where customers browse individual products and place unrelated products into a normal shopping cart.
+
+This business operates using a WEEKLY PREORDER MEAL PREP MODEL.
+
+Every week approximately 15 meals are offered across categories such as Breakfast, Entrées/Lunch/Dinner, Healthier Options and Premium Meals.
+
+Customers select quantities of meals from THAT WEEK’S menu.
+
+Example customer order:
+
+#4 × 2
+#5 × 2
+#6 × 1
+#7 × 1
+#8 × 2
+#10 × 2
+
+Redesign the ordering experience around this workflow.
+
+Create a section called:
+
+BUILD YOUR WEEK
+
+Display the current weekly meals grouped by category.
+
+Each meal should include:
+
+* meal number
+* meal name
+* photo
+* description
+* calories
+* protein
+* carbs
+* price
+* premium indicator when applicable
+* minus quantity button
+* current quantity
+* plus quantity button
+
+Do NOT use traditional “Add to Cart” buttons.
+
+Customers should simply increase/decrease the quantity beside each meal.
+
+Create a sticky/floating Your Week summary showing:
+
+* total meals selected
+* each selected meal
+* quantity
+* meal subtotal
+* premium meal charges
+* running subtotal
+
+Then create a multi-step ordering flow:
+
+STEP 1 — BUILD YOUR WEEK
+Customer chooses meals and quantities.
+
+STEP 2 — FULFILLMENT
+Customer chooses Pickup or Delivery.
+
+Pickup should support configurable weekly pickup windows.
+
+Delivery should support configurable delivery zones/fees and customer address entry.
+
+For the current demo, make delivery pricing editable/configurable rather than permanently hard-coded.
+
+STEP 3 — CUSTOMER INFO
+Name
+Phone
+Email
+Address if delivery
+Optional order notes
+
+STEP 4 — REVIEW ORDER
+
+Show:
+
+* selected meals
+* quantities
+* meal subtotal
+* premium charges
+* delivery charge
+* final total
+
+STEP 5 — SECURE CHECKOUT
+
+For this demo, prepare the architecture for Square hosted checkout but do not require live payment credentials.
+
+⸻
+
+WEEKLY MENU ARCHITECTURE:
+
+The menu changes EVERY WEEK.
+
+Do not hard-code meal cards individually throughout components.
+
+Create one portable structured weekly-menu data source inside the repository.
+
+Suggested:
+
+/src/data/weeklyMenu.ts
+
+or equivalent JSON.
+
+Every meal should contain structured fields such as:
+
+id
+mealNumber
+name
+category
+description
+price
+calories
+protein
+carbs
+image
+premium
+
+The entire menu UI should render dynamically from this one source.
+
+Make replacing the complete weekly menu extremely easy.
+
+All meal images must remain in portable public assets such as:
+
+/public/images/meals/
+
+Never store them in Replit-specific storage.
+
+⸻
+
+ORDER DEADLINE:
+
+Add a configurable weekly ordering deadline.
+
+Current business workflow indicates weekly ordering closes around Saturday at noon.
+
+Create a prominent countdown such as:
+
+ORDERS CLOSE IN
+01 DAY : 14 HOURS : 23 MIN
+
+When the deadline passes, disable ordering and display:
+
+Ordering for this week’s menu has closed. Check back for next week’s menu.
+
+Make the deadline easily editable.
+
+⸻
+
+BUSINESS WORKFLOW:
+
+The website should substantially reduce the amount of manual texting currently required to:
+
+* determine which meals someone wants
+* determine quantities
+* calculate premium meals
+* calculate totals
+* ask pickup versus delivery
+* obtain customer information
+* organize weekly orders
+
+Design the experience around solving these operational problems.
+
+Preserve the premium visual design, photography, videos, responsive behavior and portable Replit → GitHub → Vercel architecture already requested.
+
+Do not break or unnecessarily rewrite working media/deployment functionality.

@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "904 Meal Prepz"
+description = "A premium, mobile-first storefront concept for a Jacksonville meal-prep business, with a weekly menu, client-side cart, checkout demo, local brand storytelling, and Vercel-ready static architecture."
+version = "1.0.0"
+id = "artifacts/904-meal-prepz"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21290
+
+[services.development]
+run = "pnpm --filter @workspace/904-meal-prepz run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/904-meal-prepz", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/904-meal-prepz/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21290"
+BASE_PATH = "/"
