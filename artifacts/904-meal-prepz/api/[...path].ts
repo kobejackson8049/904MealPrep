@@ -1,3 +1,3 @@
-import app from "../../api-server/src/app";
+import app from "@workspace/api-server/app";
 
 export default app;
