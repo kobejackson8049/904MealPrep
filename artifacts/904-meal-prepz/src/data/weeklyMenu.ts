@@ -12,6 +12,7 @@ export type WeeklyMeal = {
   carbs: number;
   image: string;
   premium: boolean;
+  premiumCharge?: number;
   tag?: string;
 };
 
@@ -49,5 +50,5 @@ export const weeklyMenu = {
 export const premiumCharge = 2;
 
 export function displayedMealPrice(meal: Pick<WeeklyMeal, 'price' | 'premium'>) {
-  return meal.price + (meal.premium ? premiumCharge : 0);
+  return meal.price + (meal.premium ? ('premiumCharge' in meal && typeof meal.premiumCharge === 'number' ? meal.premiumCharge : premiumCharge) : 0);
 }

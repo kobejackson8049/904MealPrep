@@ -73,6 +73,18 @@ function remainingTime(deadline: Date, now: Date): Countdown {
   return { days: Math.floor(minutes / 1440), hours: Math.floor((minutes % 1440) / 60), minutes: minutes % 60 };
 }
 
+function readPublishedMenu() {
+  try {
+    const stored = JSON.parse(localStorage.getItem('904-published-menu') || 'null');
+    if (stored && Array.isArray(stored.meals) && stored.meals.length) {
+      return { ...weeklyMenu, ...stored, meals: stored.meals } as typeof weeklyMenu;
+    }
+  } catch {
+    // The committed weekly menu remains the portable default.
+  }
+  return weeklyMenu;
+}
+
 function Logo({ light = false, compact = false }: { light?: boolean; compact?: boolean }) {
   return (
     <Link href="/" className={`flex items-center gap-2.5 ${light ? 'text-[#f7f4eb]' : 'text-[#073d45]'}`} data-testid="link-logo">
@@ -181,7 +193,7 @@ function OrderPage({ orderingOpen, countdown }: { orderingOpen: boolean; countdo
   const items = useMemo(() => weeklyMenu.meals.filter((meal) => selections[meal.id] > 0).map((meal) => ({ meal, quantity: selections[meal.id] })), [selections]);
   const totalMeals = items.reduce((sum, item) => sum + item.quantity, 0);
   const mealSubtotal = items.reduce((sum, item) => sum + item.meal.price * item.quantity, 0);
-  const premiumCharges = items.reduce((sum, item) => sum + (item.meal.premium ? premiumCharge * item.quantity : 0), 0);
+  const premiumCharges = items.reduce((sum, item) => sum + (displayedMealPrice(item.meal) - item.meal.price) * item.quantity, 0);
   const deliveryFee = draft.fulfillment === 'delivery' ? weeklyMenu.deliveryZones.find((zone) => zone.id === draft.deliveryZone)?.fee || 0 : 0;
   const total = mealSubtotal + premiumCharges + deliveryFee;
   const filteredMeals = weeklyMenu.meals.filter((meal) => category === 'All' || meal.category === category);
@@ -203,8 +215,7 @@ function OrderPage({ orderingOpen, countdown }: { orderingOpen: boolean; countdo
   }
   async function submitOrder() {
     setSubmitting(true); setOrderError('');
-    const apiBase = import.meta.env.VITE_API_BASE_URL;
-    if (!apiBase) { setSubmitted(true); setStep(6); setSubmitting(false); return; }
+    const apiBase = import.meta.env.VITE_API_BASE_URL || '/api';
     try {
       const response = await fetch(`${apiBase.replace(/\/$/, '')}/orders`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ menuId: weeklyMenu.id, customer: { name: draft.name, email: draft.email, phone: draft.phone, address: draft.address }, fulfillment: draft.fulfillment, pickupWindow: draft.pickupWindow, deliveryZone: draft.deliveryZone, deliveryAddress: draft.address, notes: draft.notes, paymentMethod: draft.paymentMethod, items: items.map(({ meal, quantity }) => ({ mealId: meal.id, quantity })) }) });
       if (!response.ok) throw new Error('The order service could not accept this order.');
@@ -269,9 +280,43 @@ function NotFoundPage() {
 
 export default function PublicSite() {
   const [location] = useLocation();
+  const [publishedMenu, setPublishedMenu] = useState(() => readPublishedMenu());
   const [now, setNow] = useState(() => new Date());
+  Object.assign(weeklyMenu, publishedMenu);
   useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 30000); return () => window.clearInterval(timer); }, []);
-  const deadline = useMemo(() => new Date(weeklyMenu.orderDeadline), []);
+  useEffect(() => {
+    const refresh = () => setPublishedMenu(readPublishedMenu());
+    window.addEventListener('storage', refresh);
+    return () => window.removeEventListener('storage', refresh);
+  }, []);
+  useEffect(() => {
+    let active = true;
+    const apiBase = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+    fetch(`${apiBase}/menus/current`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Published menu API unavailable');
+        return response.json();
+      })
+      .then((menu) => {
+        if (!active || !Array.isArray(menu.meals) || !menu.meals.length) return;
+        setPublishedMenu({
+          ...weeklyMenu,
+          ...menu,
+          meals: menu.meals.map((meal: Record<string, unknown>) => ({
+            ...meal,
+            price: Number(meal.price),
+            premiumCharge: Number(meal.premiumCharge || 0),
+            premium: Number(meal.premiumCharge || 0) > 0,
+          })),
+          deliveryZones: Array.isArray(menu.deliveryZones) ? menu.deliveryZones.map((zone: Record<string, unknown>) => ({ ...zone, fee: Number(zone.fee) })) : weeklyMenu.deliveryZones,
+        } as typeof weeklyMenu);
+      })
+      .catch(() => {
+        // Offline/static deployments intentionally keep the committed or locally published fallback.
+      });
+    return () => { active = false; };
+  }, []);
+  const deadline = useMemo(() => new Date(publishedMenu.orderDeadline), [publishedMenu.orderDeadline]);
   const orderingOpen = deadline.getTime() > now.getTime();
   const countdown = remainingTime(deadline, now);
   useEffect(() => {

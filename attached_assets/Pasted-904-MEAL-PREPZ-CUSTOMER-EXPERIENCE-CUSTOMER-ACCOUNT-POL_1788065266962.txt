@@ -1,0 +1,693 @@
+904 MEAL PREPZ — CUSTOMER EXPERIENCE + CUSTOMER ACCOUNT POLISH
+
+Improve the EXISTING 904 Meal Prepz website.
+
+IMPORTANT:
+
+Do NOT rebuild the site from scratch.
+
+I like the current visual identity, colors, typography, navigation, multi-page structure, food-card presentation, admin system, order builder, quantity controls and overall direction.
+
+Make targeted improvements only.
+
+DO NOT BREAK ANYTHING THAT CURRENTLY WORKS.
+
+Preserve:
+
+* Existing admin dashboard
+* Weekly menu system
+* Meal Library
+* Order builder
+* Kitchen Prep
+* Customers/analytics functionality
+* Payment architecture
+* GitHub compatibility
+* Vercel compatibility
+* Existing images/videos
+* Multi-page routing
+* Mobile responsiveness
+
+⸻
+
+1. FIX ALL PLACEHOLDER BUSINESS INFORMATION
+
+The public website currently contains invented placeholder information.
+
+Replace it.
+
+Correct public contact information:
+
+Phone: 904-365-3221
+
+Email: 904MealPrepz@gmail.com
+
+Instagram: @904mealprepz
+
+Make:
+
+* Phone clickable with tel:
+* Email clickable with mailto:
+* Instagram link functional
+
+Search the ENTIRE application for:
+
+* (904) 555-0184
+* hello@904mealprepz.com
+* other fake phone numbers
+* fake emails
+* fake addresses
+
+Remove or replace all of them.
+
+Do NOT invent a physical pickup address.
+
+Pickup instructions should remain configurable by the admin.
+
+⸻
+
+2. STOP INVENTING BUSINESS FACTS
+
+Do not fabricate information about the business.
+
+Do NOT invent:
+
+* owner biographies
+* chef biographies
+* employees
+* years in business
+* awards
+* customer counts
+* number of meals served
+* health certifications
+* guarantees
+* testimonials
+* exact pickup locations
+
+Keep unsupported information editable and generic until the business owner supplies it.
+
+If any existing images portray a fictional chef or fictional employee as though that person works for 904 Meal Prepz, remove that implication.
+
+It is okay to use food-preparation lifestyle imagery as decorative media, but do not present a fictional person as the actual owner or chef.
+
+⸻
+
+3. MAKE THE WEEKLY MENU THE SINGLE SOURCE OF TRUTH
+
+Customer-facing meal information must come from the SAME Meal Library / published weekly menu data used by the admin.
+
+Do NOT maintain separate hardcoded meal information on:
+
+* Home
+* Menu
+* Order
+* Gallery
+
+If an admin changes:
+
+* meal title
+* image
+* description
+* category
+* calories
+* protein
+* carbs
+* standard/premium status
+
+those changes should automatically populate everywhere appropriate.
+
+Do not have conflicting descriptions or nutrition values across different pages.
+
+⸻
+
+4. FIX CURRENT MENU INFORMATION CONSISTENCY
+
+Some current customer-facing descriptions/macros appear to differ from the menu information supplied for the demo.
+
+Make all displayed meal data derive from one normalized meal object.
+
+A meal should have fields such as:
+
+* id
+* mealNumber
+* title
+* category
+* description
+* image
+* calories
+* protein
+* carbs
+* premium
+* active
+
+Pricing should come from global settings:
+
+Standard = $8
+
+Premium = $10
+
+Never duplicate prices manually across components.
+
+⸻
+
+5. IMPROVE THE MENU PAGE
+
+The /menu page should remain a browsing page rather than becoming another full checkout.
+
+Improve meal cards so customers immediately see:
+
+* Large meal photo
+* Meal number
+* Meal title
+* Category
+* Short description
+* Calories
+* Protein
+* Carbs
+* Price
+* Premium badge if applicable
+
+Keep a clear:
+
+Choose Quantity
+
+or
+
+Build My Order
+
+action.
+
+Add category filters:
+
+* All
+* Breakfast
+* Lunch
+* Dinner
+* Premium
+
+Only show categories that actually contain meals that week.
+
+⸻
+
+6. IMPROVE BUILD YOUR ORDER
+
+Keep the current /order experience and quantity selectors.
+
+I like the current:
+
+[-] quantity [+]
+
+concept and the persistent Your Order summary.
+
+Improve usability without redesigning it.
+
+The sticky order summary should show:
+
+* Meal name
+* Quantity
+* Price
+* Standard subtotal
+* Premium subtotal
+* Total meals
+* Current subtotal
+
+Make it very easy to remove a meal.
+
+On mobile, replace the large desktop sidebar with a compact sticky bottom summary such as:
+
+4 meals • $32 — View Order
+
+Tapping it should open the full summary.
+
+Do not let the sticky order panel cover meal cards or quantity controls.
+
+⸻
+
+7. CREATE A CLEAN MULTI-STEP CHECKOUT
+
+After Continue to Checkout, use a clear step flow:
+
+1 — Order
+
+2 — Fulfillment
+
+3 — Your Info
+
+4 — Payment
+
+5 — Review
+
+6 — Confirmation
+
+Show progress at the top.
+
+⸻
+
+8. PICKUP / DELIVERY
+
+Customer chooses:
+
+Pickup
+
+or
+
+Delivery
+
+Pickup dates/times must come from the currently published weekly-menu settings.
+
+Delivery dates/times must also come from admin settings.
+
+For delivery collect:
+
+* Street
+* City
+* ZIP
+* Apartment/unit if needed
+* Delivery instructions
+
+Delivery fee must be calculated/displayed BEFORE payment.
+
+Do not invent a delivery fee.
+
+Use the business’s configured delivery-zone rules.
+
+⸻
+
+9. PAYMENT EXPERIENCE
+
+Square should visually be the:
+
+Recommended / Preferred
+
+payment option.
+
+Support:
+
+* Square
+* Apple Pay where supported
+* Cash App
+* Venmo
+* Zelle
+
+All payment methods must create the SAME normalized order.
+
+Manual payment methods should show the exact:
+
+* Amount due
+* Order number
+* Payment instructions
+
+and begin as:
+
+Payment Pending
+
+Customer should understand that their payment must still be confirmed.
+
+Never ask users to enter Cash App, Venmo, Zelle or banking passwords.
+
+⸻
+
+10. ADD OPTIONAL CUSTOMER ACCOUNTS
+
+Add an optional customer account system.
+
+DO NOT require customers to create an account before ordering.
+
+Guest checkout must always remain available.
+
+Add:
+
+/login
+
+and
+
+/account
+
+Prefer a simple secure login experience such as:
+
+* email magic link
+* phone/email one-time code
+
+rather than requiring customers to remember another password, if practical with the eventual production authentication provider.
+
+Do not build insecure custom authentication.
+
+For the demo, build the interface and architecture cleanly without hardcoding production credentials.
+
+⸻
+
+11. CUSTOMER ACCOUNT DASHBOARD
+
+Once logged in, /account should contain:
+
+Upcoming / Current Order
+
+Show:
+
+* Order number
+* Meals
+* Quantities
+* Total
+* Payment status
+* Pickup/delivery
+* Fulfillment date/time
+* Current fulfillment status
+
+Past Orders
+
+Show previous orders by date.
+
+Customer should be able to open an old order and see everything they purchased.
+
+REORDER
+
+Add:
+
+Reorder
+
+functionality.
+
+IMPORTANT:
+
+Because menus change every week, do NOT blindly copy unavailable meals into the cart.
+
+When someone clicks Reorder:
+
+Compare their previous meals with the CURRENT published menu.
+
+Example:
+
+Previous order:
+
+* Jerk Chicken ×2 — available ✅
+* Teriyaki Chicken ×2 — available ✅
+* Salmon Bowl ×1 — unavailable this week
+
+Add available items to the new order and clearly notify the customer which previous meals are unavailable.
+
+Never substitute a different meal automatically.
+
+⸻
+
+12. CUSTOMER PROFILE
+
+Allow logged-in customers to maintain:
+
+* Name
+* Phone
+* Email
+* Default delivery address
+* Delivery instructions
+
+Do NOT store payment-card information directly.
+
+If payment methods are saved later, they must be handled by the payment provider’s secure tokenization/vault system.
+
+⸻
+
+13. FAVORITES
+
+Allow logged-in customers to optionally favorite meals.
+
+Add a small tasteful favorite/heart control to meal cards.
+
+Their account can show:
+
+Favorite Meals
+
+If one of their favorites is available this week, visually surface:
+
+Your favorite is back this week
+
+Do not clutter the menu UI.
+
+⸻
+
+14. ORDER CONFIRMATION
+
+After any order is successfully submitted, create a polished confirmation page.
+
+Display:
+
+Order confirmed
+
+* Order number
+* Customer
+* Meals
+* Quantities
+* Total
+* Payment method
+* Payment status
+* Pickup/delivery
+* Scheduled fulfillment
+
+For manual payment:
+
+Clearly show:
+
+Payment still required
+
+with the correct instructions.
+
+Include:
+
+View My Order
+
+for account customers.
+
+For guests, allow a secure order-status link if supported by the eventual production architecture.
+
+⸻
+
+15. HOME PAGE POLISH
+
+Keep the existing Home page style.
+
+Don’t turn it back into one giant scrolling website.
+
+Keep Home relatively concise.
+
+Prioritize:
+
+* What 904 Meal Prepz is
+* This week’s ordering deadline
+* A small preview of current meals
+* $8 starting price
+* Pickup/delivery
+* Build Order CTA
+* View Menu CTA
+* Brief How It Works preview
+
+Continue linking to dedicated pages for full information.
+
+⸻
+
+16. GALLERY IMPROVEMENT
+
+Keep /gallery, but make a distinction between:
+
+Current Menu
+
+and
+
+Past Favorites / Food Gallery
+
+Do not make it appear that every gallery meal is currently orderable.
+
+If gallery photos come from Meal Library items, display an indicator:
+
+Available This Week
+
+when active.
+
+Otherwise:
+
+Past Menu
+
+or no availability label.
+
+Clicking an available meal can lead to the Order page.
+
+⸻
+
+17. ABOUT PAGE
+
+Keep the strong visual style of the current About page.
+
+Avoid generic corporate copy that sounds fabricated.
+
+Make the copy feel local and simple.
+
+Use editable sections so the owner can later provide:
+
+* Their story
+* Why they started
+* Their approach to food
+
+Do not invent those details.
+
+⸻
+
+18. CONTACT / FAQ
+
+Keep the current Contact/FAQ page layout.
+
+Update the contact information to the real supplied information.
+
+FAQ should include:
+
+* When does ordering close?
+* How does pickup work?
+* Do you deliver?
+* How much is delivery?
+* What payment methods do you accept?
+* How do Cash App/Venmo/Zelle payments work?
+* Where can I see nutrition/macros?
+* What happens if a meal sells out?
+* Can I order every week without creating an account?
+
+FAQ answers should pull operational settings from admin wherever appropriate rather than hardcoding values.
+
+⸻
+
+19. CUSTOMER ACCOUNT + ADMIN CONNECTION
+
+Customer accounts must connect to the SAME customer/order database used by the admin.
+
+Example:
+
+If a customer places an order while logged in:
+
+* Order appears in Admin Orders
+* Kitchen Prep updates
+* Fulfillment updates
+* Customer lifetime spend updates
+* Customer order history updates
+* Analytics update
+* Payment data updates
+
+There must NOT be separate customer-facing and admin-facing order records.
+
+⸻
+
+20. GUEST ORDER MATCHING
+
+If a customer orders as a guest and later creates an account using the same verified email/phone, architect the system so their previous eligible orders can be associated with their customer profile.
+
+Do this safely using verified identity information.
+
+Do not merge customers solely because their names happen to match.
+
+⸻
+
+21. MOBILE
+
+Thoroughly test:
+
+* Navigation
+* Meal cards
+* Quantity controls
+* Sticky cart/order summary
+* Checkout
+* Login
+* Customer account
+* FAQ
+* Admin screens
+
+The majority of customers may arrive from social media on a phone, so the ordering experience must be excellent on mobile.
+
+Do not simply shrink the desktop design.
+
+⸻
+
+22. PERFORMANCE
+
+Optimize food images so the site does not become extremely slow.
+
+Use:
+
+* Responsive image sizing
+* Lazy loading below the fold
+* Efficient image formats where appropriate
+
+Preserve visual quality.
+
+Videos should not block page loading.
+
+⸻
+
+23. KEEP EVERYTHING PORTABLE
+
+Maintain:
+
+Replit → GitHub → Vercel → Client Ownership
+
+Do NOT introduce:
+
+* Replit-only authentication
+* Replit-only storage dependencies
+* MemStorage
+* temporary runtime uploads
+* hardcoded Replit URLs
+
+Authentication, database, media storage and payments should remain configurable through portable environment variables/providers.
+
+⸻
+
+24. DO NOT DESTROY THE CURRENT DESIGN
+
+This is a polish/functionality update.
+
+The current site already has a strong visual identity.
+
+Do not randomly:
+
+* change the color palette
+* replace the typography
+* remove the multi-page structure
+* redesign working meal cards
+* remove the sticky order concept
+* change the admin visual language
+
+Fix the problems and add the requested functionality while preserving the current look.
+
+⸻
+
+FINAL QA
+
+Before finishing:
+
+Test the complete customer journey:
+
+Home → Menu → Build Order → Fulfillment → Customer Info → Payment → Review → Confirmation
+
+Test both:
+
+Guest checkout
+
+and
+
+Customer account checkout
+
+Confirm:
+
+1. Weekly menu matches admin-published meals.
+2. Prices match globally configured prices.
+3. Meal descriptions/macros remain consistent everywhere.
+4. Real contact information is displayed.
+5. Placeholder contact information is gone.
+6. Cart totals are mathematically correct.
+7. Premium meals calculate correctly.
+8. Delivery fees calculate correctly.
+9. All payment methods create the same type of order.
+10. Admin receives every order.
+11. Kitchen Prep updates from those orders.
+12. Fulfillment updates.
+13. Customer history updates.
+14. Reorder handles unavailable weekly meals correctly.
+15. Guest checkout works without registration.
+16. Mobile ordering works correctly.
+17. Existing admin functionality still works.
+18. Production build succeeds.
+19. GitHub/Vercel portability remains intact.
+
+Do not finish by only creating UI mocks. Wire the features into the existing shared data model where appropriate, while preserving demo-safe behavior when production services have not yet been connected.
