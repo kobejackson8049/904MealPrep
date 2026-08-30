@@ -162,20 +162,24 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
 }
 
 function classifyDatabaseError(error: unknown): string {
-  const code = typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
-    ? error.code.slice(0, 40)
-    : "";
-  if (code) return code;
+  let current: unknown = error;
+  for (let depth = 0; depth < 5 && current; depth += 1) {
+    const code = typeof current === "object" && current !== null && "code" in current && typeof current.code === "string"
+      ? current.code.slice(0, 40)
+      : "";
+    if (code) return code;
 
-  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
-  if (message.includes("database_url must be set")) return "DATABASE_URL_MISSING";
-  if (message.includes("cannot find package") || message.includes("cannot find module")) return "DATABASE_MODULE_UNAVAILABLE";
-  if (message.includes("getaddrinfo") || message.includes("enotfound")) return "DATABASE_DNS_ERROR";
-  if (message.includes("certificate") || message.includes("ssl") || message.includes("tls")) return "DATABASE_TLS_ERROR";
-  if (message.includes("password authentication") || message.includes("authentication failed")) return "DATABASE_AUTH_FAILED";
-  if (message.includes("relation") && message.includes("does not exist")) return "DATABASE_SCHEMA_MISSING";
-  if (message.includes("timeout") || message.includes("timed out")) return "DATABASE_TIMEOUT";
-  if (message.includes("connect")) return "DATABASE_CONNECTION_FAILED";
+    const message = current instanceof Error ? current.message.toLowerCase() : String(current).toLowerCase();
+    if (message.includes("database_url must be set")) return "DATABASE_URL_MISSING";
+    if (message.includes("cannot find package") || message.includes("cannot find module")) return "DATABASE_MODULE_UNAVAILABLE";
+    if (message.includes("getaddrinfo") || message.includes("enotfound")) return "DATABASE_DNS_ERROR";
+    if (message.includes("certificate") || message.includes("ssl") || message.includes("tls")) return "DATABASE_TLS_ERROR";
+    if (message.includes("password authentication") || message.includes("authentication failed")) return "DATABASE_AUTH_FAILED";
+    if (message.includes("relation") && message.includes("does not exist")) return "DATABASE_SCHEMA_MISSING";
+    if (message.includes("timeout") || message.includes("timed out")) return "DATABASE_TIMEOUT";
+    if (message.includes("connect")) return "DATABASE_CONNECTION_FAILED";
+    current = typeof current === "object" && current !== null && "cause" in current ? current.cause : null;
+  }
   return "DATABASE_UNAVAILABLE";
 }
 
