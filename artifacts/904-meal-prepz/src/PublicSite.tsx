@@ -21,8 +21,8 @@ type Selection = Record<string, number>;
 type Countdown = { days: number; hours: number; minutes: number };
 type PaymentOption = { enabled: boolean; handle: string; qrPath: string };
 let configuredPaymentOptions: Partial<Record<PaymentMethod, PaymentOption>> = {
-  apple_pay: { enabled: true, handle: '$sneakfeen', qrPath: '' },
-  cash_app: { enabled: true, handle: '$sneakfeen', qrPath: '' },
+  apple_pay: { enabled: true, handle: '$904mealprepz', qrPath: '' },
+  cash_app: { enabled: true, handle: '$904mealprepz', qrPath: '' },
 };
 
 const publicNav = [

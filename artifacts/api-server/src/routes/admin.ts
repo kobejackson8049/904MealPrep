@@ -289,8 +289,8 @@ router.get("/admin/menus/current", requireAdmin, async (_req, res): Promise<void
     ]);
     const settings = settingsRows[0];
     res.json({ ...menu, meals, deliveryZones, paymentOptions: settings ? {
-      apple_pay: { enabled: settings.applePayEnabled, handle: settings.applePayHandle || settings.cashAppHandle || "$sneakfeen", qrPath: settings.applePayQrPath },
-      cash_app: { enabled: settings.cashAppEnabled, handle: settings.cashAppHandle || "$sneakfeen", qrPath: settings.cashAppQrPath },
+      apple_pay: { enabled: settings.applePayEnabled, handle: settings.applePayHandle || settings.cashAppHandle || "$904mealprepz", qrPath: settings.applePayQrPath },
+      cash_app: { enabled: settings.cashAppEnabled, handle: settings.cashAppHandle || "$904mealprepz", qrPath: settings.cashAppQrPath },
       venmo: { enabled: settings.venmoEnabled, handle: settings.venmoHandle, qrPath: settings.venmoQrPath },
       zelle: { enabled: settings.zelleEnabled, handle: settings.zelleContact, qrPath: settings.zelleQrPath },
     } : null });
@@ -549,7 +549,7 @@ router.get("/menus/current", async (_req, res): Promise<void> => {
     ]);
     const settings = settingsRows[0];
     res.json({ ...menu, meals, deliveryZones, paymentOptions: settings ? {
-      cash_app: { enabled: settings.cashAppEnabled, handle: settings.cashAppHandle, qrPath: settings.cashAppQrPath },
+      cash_app: { enabled: settings.cashAppEnabled, handle: settings.cashAppHandle || "$904mealprepz", qrPath: settings.cashAppQrPath },
       venmo: { enabled: settings.venmoEnabled, handle: settings.venmoHandle, qrPath: settings.venmoQrPath },
       zelle: { enabled: settings.zelleEnabled, handle: settings.zelleContact, qrPath: settings.zelleQrPath },
     } : null });
@@ -661,8 +661,8 @@ router.post("/orders", async (req, res): Promise<void> => {
     }
     const [settings] = await db.select().from(businessSettingsTable).where(eq(businessSettingsTable.id, "default")).limit(1);
     const configuredMethods = settings ? {
-      apple_pay: { enabled: settings.applePayEnabled, handle: settings.applePayHandle || settings.cashAppHandle || "$sneakfeen" },
-      cash_app: { enabled: settings.cashAppEnabled, handle: settings.cashAppHandle || "$sneakfeen" },
+      apple_pay: { enabled: settings.applePayEnabled, handle: settings.applePayHandle || settings.cashAppHandle || "$904mealprepz" },
+      cash_app: { enabled: settings.cashAppEnabled, handle: settings.cashAppHandle || "$904mealprepz" },
       venmo: { enabled: settings.venmoEnabled, handle: settings.venmoHandle },
       zelle: { enabled: settings.zelleEnabled, handle: settings.zelleContact },
     } : null;

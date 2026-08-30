@@ -56,7 +56,7 @@ const defaultSettings: Settings = {
   announcement: 'Preorder by Saturday at noon for Sunday pickup or local delivery.',
   pricing: { standardPrice: 8, premiumCharge: 2 },
   showDemoLabel: true,
-  cashAppHandle: '$sneakfeen', applePayHandle: '', venmoHandle: '', zelleContact: '',
+  cashAppHandle: '$904mealprepz', applePayHandle: '', venmoHandle: '', zelleContact: '',
   cashAppEnabled: true, applePayEnabled: true, venmoEnabled: true, zelleEnabled: true,
   applePayQrPath: '', cashAppQrPath: '', venmoQrPath: '', zelleQrPath: '',
 };
@@ -179,7 +179,7 @@ export default function AdminApp() {
       fetch(`${apiBase()}/admin/menus`, { headers }).then((response) => response.ok ? response.json() : Promise.reject(new Error('menus'))),
     ]).then(([apiOrders, apiSettings, apiMenus]) => {
       setOrders(apiOrders.map(normalizeApiOrder));
-      if (apiSettings) setSettings({ ...defaultSettings, ...apiSettings, pricing: { standardPrice: Number(apiSettings.standardPrice), premiumCharge: Number(apiSettings.premiumCharge) } });
+      if (apiSettings) setSettings({ ...defaultSettings, ...apiSettings, cashAppHandle: apiSettings.cashAppHandle || '$904mealprepz', pricing: { standardPrice: Number(apiSettings.standardPrice), premiumCharge: Number(apiSettings.premiumCharge) } });
       const activeMenu = apiMenus.find((menu: Record<string, any>) => menu.status === 'draft');
       if (activeMenu) {
         setActiveMenuId(activeMenu.id);
