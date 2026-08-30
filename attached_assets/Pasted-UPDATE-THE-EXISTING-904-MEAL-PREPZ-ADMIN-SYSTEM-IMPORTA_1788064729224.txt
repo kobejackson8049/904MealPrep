@@ -1,0 +1,511 @@
+UPDATE THE EXISTING 904 MEAL PREPZ ADMIN SYSTEM.
+
+IMPORTANT:
+
+Do NOT redesign the admin area from scratch.
+
+Keep the current visual style, layout, branding, navigation, typography, cards, colors, current pages, existing functionality, GitHub portability, Vercel compatibility, database architecture, public website, ordering flow, payment logic, images and videos.
+
+I like the way the admin section currently looks.
+
+This update should focus on improving functionality, organization, data consistency and adding a few missing operational pages.
+
+DO NOT BREAK ANYTHING THAT ALREADY WORKS.
+
+⸻
+
+1. IMPROVE WEEKLY MENU MANAGEMENT
+
+The current /admin/weekly-menu page looks too much like a simple list.
+
+Turn this into a true weekly menu management workspace.
+
+The admin should be able to see every active/non-archived meal from the Meal Library and easily choose which meals will be available to customers for the current week.
+
+Each meal should have a clear LIVE/OFF toggle or checkbox.
+
+Example:
+
+[✓] 3 Egg Breakfast — LIVE
+
+[✓] Teriyaki Chicken Bowl — LIVE
+
+[✓] Jerk Chicken Bowl — LIVE
+
+[ ] Chicken Alfredo — OFF
+
+[ ] Taco Bowl — OFF
+
+[✓] Smoky Salmon Bowl — LIVE / PREMIUM
+
+Clearly distinguish:
+
+* Standard meal
+* Premium meal
+* Breakfast
+* Lunch
+* Dinner
+
+Admin should be able to build the next weekly menu WITHOUT immediately changing what customers see.
+
+Add these actions:
+
+* Save Draft
+* Preview Customer Menu
+* Publish Menu
+
+Only clicking Publish Menu should make the new weekly selection live on the customer-facing website.
+
+Until publishing, customers should continue seeing the currently published menu.
+
+When a new menu is published, the previous menu should remain preserved in historical records.
+
+Add a confirmation before publishing:
+
+Publish this menu to customers?
+
+⸻
+
+2. WEEKLY MENU SETTINGS
+
+On the Weekly Menu page, allow admin to configure:
+
+* Menu/week title
+* Ordering open date/time
+* Ordering cutoff date/time
+* Sunday pickup windows
+* Monday pickup windows
+* Sunday delivery windows
+* Monday delivery windows
+* Optional weekly announcement
+
+These settings should automatically control what customers see on the public website.
+
+If ordering has closed, show the appropriate closed-ordering state to customers rather than allowing new orders.
+
+⸻
+
+3. IMPROVE MEAL LIBRARY / ADD MEAL
+
+Keep the current /admin/meals Meal Library design.
+
+Make sure the existing + ADD MEAL button opens a complete working form.
+
+Admin needs to be able to enter:
+
+* Meal photo
+* Meal title
+* Description
+* Category
+* Calories
+* Protein
+* Carbs
+
+Categories:
+
+* Breakfast
+* Lunch
+* Dinner
+* Premium
+
+Pricing rules:
+
+* Standard meal = $8
+* Premium meal = $10
+
+If Premium is selected, automatically assign $10.
+
+Otherwise automatically assign $8.
+
+The admin should not need to type the price every time.
+
+Keep pricing configurable globally in Settings so the business can change standard or premium prices later.
+
+Existing Edit and Archive actions must remain functional.
+
+Archiving a meal should remove it from future weekly menu selection but NEVER change previous customer orders or historical analytics.
+
+⸻
+
+4. ADD A CUSTOMERS PAGE
+
+Create:
+
+/admin/customers
+
+Add Customers to the existing admin navigation/sidebar.
+
+This page should automatically build customer profiles from order history.
+
+Main customer table should include:
+
+* Customer name
+* Phone
+* Email
+* Total orders
+* Total meals purchased
+* Lifetime spend
+* Average order value
+* Last order date
+* Pickup/delivery preference
+
+Make customers searchable.
+
+Allow clicking a customer to open a detailed profile.
+
+Customer profile should display:
+
+* Name
+* Contact information
+* Delivery address if applicable
+* Lifetime spend
+* Number of orders
+* Total meals purchased
+* Average order value
+* First order date
+* Last order date
+* Favorite meals
+* Pickup vs delivery history
+* Payment methods previously used
+* Complete order history
+
+Example:
+
+Maya Johnson
+
+12 orders
+
+94 meals
+
+$812 lifetime spend
+
+Last order: Aug 29
+
+This should help the business identify repeat customers and high-value customers.
+
+⸻
+
+5. ADD A FULFILLMENT PAGE
+
+Create:
+
+/admin/fulfillment
+
+Add Fulfillment to the admin navigation.
+
+Kitchen Prep answers:
+
+What do we need to cook?
+
+Fulfillment should answer:
+
+Where does every completed order need to go?
+
+Create tabs or filters for:
+
+* Pickup
+* Sunday Delivery
+* Monday Delivery
+
+Each fulfillment order should show:
+
+* Order number
+* Customer name
+* Phone
+* Address if delivery
+* Total meals
+* Order total
+* Payment status
+* Fulfillment window
+* Current fulfillment status
+
+Fulfillment statuses should support:
+
+* Not Started
+* Packing
+* Packed
+* Ready for Pickup
+* Out for Delivery
+* Completed
+
+Allow admin to quickly update these statuses.
+
+Pickup orders should support:
+
+* Packed
+* Ready for Pickup
+* Picked Up
+
+Delivery orders should support:
+
+* Packed
+* Out for Delivery
+* Delivered
+
+Make this page easy to use on a phone or tablet while working in the kitchen.
+
+⸻
+
+6. KEEP KITCHEN PREP, BUT MAKE THE DATA FULLY CONNECTED
+
+Keep the current /admin/kitchen-prep design.
+
+It should continue showing the exact number of each meal required.
+
+Clicking a meal should show:
+
+* every customer who ordered it
+* quantity ordered by each customer
+
+IMPORTANT:
+
+Kitchen Prep numbers MUST be calculated from the SAME order records used everywhere else.
+
+Never use separately hardcoded kitchen-prep quantities.
+
+Example:
+
+If all active orders contain 28 meals total, then the sum of all meal quantities on Kitchen Prep must equal exactly 28.
+
+⸻
+
+7. FIX ALL DEMO DATA CONSISTENCY
+
+This is extremely important.
+
+The current seeded/demo data appears to contain numbers that do not fully reconcile between Dashboard, Orders, Kitchen Prep, Analytics and Payments.
+
+Fix this.
+
+Create ONE normalized seeded dataset and derive ALL admin numbers from it.
+
+DO NOT hardcode unrelated numbers into individual pages.
+
+Every page should calculate from the same:
+
+* customers
+* orders
+* order items
+* meals
+* payment records
+* fulfillment records
+
+For example:
+
+If Dashboard says:
+
+6 weekly orders
+
+and
+
+28 meals sold
+
+then:
+
+* Orders should contain exactly those 6 active orders.
+* The quantities of all order items should add up to exactly 28.
+* Kitchen Prep quantities should add up to exactly 28.
+* Customer histories should reflect those same 6 orders.
+* Revenue should equal the actual paid orders.
+* Pending payment total should equal the actual pending orders.
+* Payment-method totals should reconcile to revenue.
+* Delivery revenue should reconcile with delivery charges from those orders.
+
+Build reusable calculation utilities/selectors rather than repeating hardcoded calculations throughout the UI.
+
+⸻
+
+8. ANALYTICS SHOULD USE REAL ORDER DATA
+
+Keep the existing /admin/analytics page.
+
+Ensure all analytics derive from normalized historical order data.
+
+Include:
+
+* Revenue by week
+* Orders by week
+* Meals sold by week
+* Average order value
+* Most popular meals
+* Lowest-selling meals
+* Revenue by meal
+* Top customers by lifetime spend
+* New vs returning customers
+* Repeat customer rate
+* Pickup vs delivery percentage
+* Revenue by payment method
+* Premium vs standard meal sales
+
+Add a useful Top Meals section.
+
+Each meal should show:
+
+* Units sold
+* Revenue generated
+* Number of weeks offered
+* Average number sold each week it appears
+
+Historical reporting should still work even after meals are removed from future weekly menus.
+
+⸻
+
+9. PAYMENTS MUST REMAIN ONE NORMALIZED ORDER SYSTEM
+
+Keep the current /admin/payments system.
+
+Square remains the preferred/default payment method.
+
+Also support:
+
+* Apple Pay where supported
+* Cash App
+* Venmo
+* Zelle
+
+Regardless of payment method, every order must populate:
+
+* Dashboard
+* Orders
+* Kitchen Prep
+* Fulfillment
+* Customer profile
+* Analytics
+
+Manual payments should initially show:
+
+Payment Pending
+
+Admin can select:
+
+Mark Paid
+
+Once marked paid:
+
+* paid revenue updates
+* pending revenue decreases
+* customer lifetime spend updates
+* payment analytics update
+
+Do not create separate order databases for different payment methods.
+
+⸻
+
+10. KEEP THE DEMO DATA LABEL
+
+Keep the visible:
+
+Live demo data
+
+indicator during the presentation/demo version.
+
+Also keep the current owner-only/demo messaging.
+
+The purpose is to make it obvious that seeded customers, revenue and orders are examples and are NOT the actual business’s real financial information.
+
+Once this becomes a production client account, provide a configuration option to disable the demo-data banner.
+
+⸻
+
+11. ADMIN NAVIGATION
+
+Final admin navigation should clearly include:
+
+* Overview
+* Orders
+* Kitchen Prep
+* Fulfillment
+* Meal Library
+* Weekly Menu
+* Customers
+* Analytics
+* Payments
+* Settings
+
+Keep this a true MULTI-PAGE admin application.
+
+Do NOT turn these pages into one large scrolling admin dashboard.
+
+Preserve individual routes.
+
+⸻
+
+12. DATABASE / DATA MODEL
+
+Maintain a portable persistent database architecture.
+
+Data structure should cleanly support:
+
+* Admin users
+* Customers
+* Meals
+* Weekly menus
+* Weekly menu items
+* Orders
+* Order items
+* Payments
+* Fulfillment information
+
+Customer/order/payment/meal relationships must use stable IDs.
+
+Order items must snapshot historical values including:
+
+* meal name at time of purchase
+* quantity
+* unit price
+* meal type
+
+Editing a Meal Library item later must NEVER retroactively change an old order.
+
+⸻
+
+13. DO NOT BREAK DEPLOYMENT PORTABILITY
+
+Preserve the existing goal:
+
+Replit → GitHub → Vercel → client ownership
+
+Do NOT introduce:
+
+* Replit-only runtime dependencies
+* MemStorage
+* temporary in-memory order storage
+* temporary image URLs
+* hardcoded Replit URLs
+
+Keep environment variables portable.
+
+Do not commit secrets.
+
+Do not remove existing static images or videos.
+
+Verify the application still builds successfully for production after these changes.
+
+⸻
+
+FINAL QA BEFORE STOPPING
+
+Before considering this task complete:
+
+1. Test every existing admin route.
+2. Test the new Customers page.
+3. Test the new Fulfillment page.
+4. Test Add Meal.
+5. Test Edit Meal.
+6. Test Archive Meal.
+7. Test weekly menu toggles.
+8. Test Save Draft.
+9. Test Preview.
+10. Test Publish Menu.
+11. Confirm published meals update the customer-facing menu.
+12. Confirm order quantities feed Kitchen Prep correctly.
+13. Confirm customers receive correct lifetime-spend/order history.
+14. Confirm manual payment status changes update analytics.
+15. Confirm Dashboard, Orders, Kitchen Prep, Customers, Analytics and Payments all reconcile mathematically.
+16. Confirm existing public website functionality still works.
+17. Confirm mobile responsiveness.
+18. Confirm production build succeeds.
+
+Most importantly:
+
+Do not break or unnecessarily redesign anything that is already working. Make targeted improvements to the current system.
