@@ -183,15 +183,28 @@ function classifyDatabaseError(error: unknown): string {
   return "DATABASE_UNAVAILABLE";
 }
 
+function findMissingRelation(error: unknown): string | undefined {
+  let current: unknown = error;
+  for (let depth = 0; depth < 5 && current; depth += 1) {
+    const message = current instanceof Error ? current.message : String(current);
+    const match = message.match(/relation "([A-Za-z0-9_.-]+)" does not exist/i);
+    if (match) return match[1];
+    current = typeof current === "object" && current !== null && "cause" in current ? current.cause : null;
+  }
+  return undefined;
+}
+
 async function withDatabase(res: Response, work: (database: DbModule) => Promise<void>) {
   try {
     await work(await loadDb());
   } catch (error) {
     const reason = classifyDatabaseError(error);
-    console.error("Persistent database operation failed", { reason });
+    const relation = reason === "42P01" ? findMissingRelation(error) : undefined;
+    console.error("Persistent database operation failed", { reason, relation });
     res.status(503).json({
       error: "Persistent database is not configured or is temporarily unavailable",
       reason,
+      ...(relation ? { relation } : {}),
       ...(process.env.NODE_ENV === "development" ? { detail: error instanceof Error ? error.message : String(error) } : {}),
     });
   }
