@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./app": "./src/app.ts"
+    "./app": "./dist/app.mjs"
   },
   "scripts": {
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",

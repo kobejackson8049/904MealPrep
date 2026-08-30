@@ -5,6 +5,7 @@
   "framework": "vite",
   "cleanUrls": true,
   "rewrites": [
+    { "source": "/api/:path*", "destination": "/api?path=:path*" },
     { "source": "/admin", "destination": "/" },
     { "source": "/admin/:path*", "destination": "/" },
     { "source": "/menu", "destination": "/index.html" },
