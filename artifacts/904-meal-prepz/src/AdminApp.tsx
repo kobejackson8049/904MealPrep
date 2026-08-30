@@ -157,9 +157,10 @@ function publishToPublicMenu(draft: MenuDraft, meals: AdminMenuMeal[], pricing: 
 
 export default function AdminApp() {
   const previewAllowed = import.meta.env.DEV || import.meta.env.VITE_ADMIN_PREVIEW === 'true';
-  const [apiToken, setApiToken] = useState(() => sessionStorage.getItem('904-admin-token') || '');
+  const previewMode = previewAllowed && (new URLSearchParams(window.location.search).get('preview') === '1' || sessionStorage.getItem('904-admin-preview') === '1');
+  const [apiSession, setApiSession] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState(weeklyMenu.id);
-  const [authenticated, setAuthenticated] = useState(() => Boolean(apiToken) || (previewAllowed && (new URLSearchParams(window.location.search).get('preview') === '1' || sessionStorage.getItem('904-admin-preview') === '1')));
+  const [authenticated, setAuthenticated] = useState(previewMode);
   const [location, setLocation] = useLocation();
   const tab = tabForRoute(location);
   const [mobileNav, setMobileNav] = useState(false);
@@ -180,18 +181,27 @@ export default function AdminApp() {
   const selectedCustomer = customers.find((customer) => customer.id === selectedCustomerId) || null;
 
   useEffect(() => {
-    if (previewAllowed && new URLSearchParams(window.location.search).get('preview') === '1' && !apiToken) {
+    if (previewAllowed && new URLSearchParams(window.location.search).get('preview') === '1') {
       sessionStorage.setItem('904-admin-preview', '1');
     }
-  }, [apiToken, previewAllowed]);
+  }, [previewAllowed]);
 
   useEffect(() => {
-    if (!authenticated || !apiToken) return;
-    const headers = { Authorization: `Bearer ${apiToken}` };
+    if (previewMode || authenticated) return;
+    fetch(`${apiBase()}/admin/session`, { credentials: 'include' }).then((response) => {
+      if (response.ok) {
+        setApiSession(true);
+        setAuthenticated(true);
+      }
+    }).catch(() => undefined);
+  }, [authenticated, previewMode]);
+
+  useEffect(() => {
+    if (!authenticated || !apiSession || previewMode) return;
     Promise.all([
-      fetch(`${apiBase()}/admin/orders`, { headers }).then((response) => response.ok ? response.json() : Promise.reject(new Error('orders'))),
-      fetch(`${apiBase()}/admin/settings`, { headers }).then((response) => response.ok ? response.json() : null),
-      fetch(`${apiBase()}/admin/menus`, { headers }).then((response) => response.ok ? response.json() : Promise.reject(new Error('menus'))),
+      fetch(`${apiBase()}/admin/orders`, { credentials: 'include' }).then((response) => response.ok ? response.json() : Promise.reject(new Error('orders'))),
+      fetch(`${apiBase()}/admin/settings`, { credentials: 'include' }).then((response) => response.ok ? response.json() : null),
+      fetch(`${apiBase()}/admin/menus`, { credentials: 'include' }).then((response) => response.ok ? response.json() : Promise.reject(new Error('menus'))),
     ]).then(([apiOrders, apiSettings, apiMenus]) => {
       setOrders(apiOrders.map(normalizeApiOrder));
       if (apiSettings) setSettings({ ...defaultSettings, ...apiSettings, cashAppHandle: apiSettings.cashAppHandle || '$904mealprepz', pricing: { standardPrice: Number(apiSettings.standardPrice), premiumCharge: Number(apiSettings.premiumCharge) } });
@@ -206,11 +216,11 @@ export default function AdminApp() {
         setMeals(apiMeals);
         setMenuDraft({ weekLabel: activeMenu.weekLabel, orderDeadline: new Date(activeMenu.orderDeadline).toISOString().slice(0, 16), deadlineLabel: activeMenu.deadlineLabel, announcement: activeMenu.announcement || '', pickupWindows: activeMenu.pickupWindows || [], deliveryZones: weeklyMenu.deliveryZones, activeMealIds: apiMeals.filter((meal) => meal.available && !meal.archived).map((meal) => meal.id), savedAt: activeMenu.updatedAt ? new Date(activeMenu.updatedAt).toLocaleString() : 'Loaded from API' });
         if (activeMenu.status === 'published') setPublishedMealIds(apiMeals.filter((meal) => meal.available && !meal.archived).map((meal) => meal.id));
-      } else if (apiToken) {
+      } else if (apiSession) {
         const published = apiMenus.find((menu: Record<string, any>) => menu.status === 'published');
         const endpoint = published ? `${apiBase()}/admin/menus/${published.id}/clone` : `${apiBase()}/admin/menus`;
         const body = published ? undefined : JSON.stringify({ id: weeklyMenu.id, weekLabel: weeklyMenu.weekLabel, orderDeadline: weeklyMenu.orderDeadline, deadlineLabel: weeklyMenu.deadlineLabel, announcement: '', pickupWindows: weeklyMenu.pickupWindows, status: 'draft' });
-        fetch(endpoint, { method: 'POST', headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' }, body }).then(async (response) => {
+        fetch(endpoint, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body }).then(async (response) => {
           if (!response.ok) throw new Error('menu initialization');
           const created = await response.json();
           setActiveMenuId(created.id);
@@ -226,7 +236,8 @@ export default function AdminApp() {
           } else if (!published) {
             const responses = await Promise.all(demoMeals.map((meal) => fetch(`${apiBase()}/admin/meals`, {
               method: 'POST',
-              headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ ...meal, menuId: created.id }),
             })));
             if (!responses.every((response) => response.ok)) throw new Error('meal initialization');
@@ -234,13 +245,12 @@ export default function AdminApp() {
         }).catch(() => setToast('The first menu could not be initialized.'));
       }
     }).catch(() => setToast('The protected API could not hydrate this workspace.'));
-  }, [apiToken, authenticated]);
+  }, [apiSession, authenticated, previewMode]);
 
-  if (!authenticated) return <AdminAuthGate previewAllowed={previewAllowed} onPreview={() => setAuthenticated(true)} onAuthenticate={async (token) => {
-    const response = await fetch(`${apiBase()}/admin/session`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!authenticated) return <AdminAuthGate previewAllowed={previewAllowed} onPreview={() => { sessionStorage.setItem('904-admin-preview', '1'); setAuthenticated(true); }} onAuthenticate={async (password) => {
+    const response = await fetch(`${apiBase()}/admin/login`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) });
     if (!response.ok) return false;
-    sessionStorage.setItem('904-admin-token', token);
-    setApiToken(token);
+    setApiSession(true);
     setAuthenticated(true);
     return true;
   }} />;
@@ -250,9 +260,9 @@ export default function AdminApp() {
     window.setTimeout(() => setToast(''), 2800);
   }
   async function changeStatus(id: string, status: AdminOrderStatus) {
-    if (apiToken) {
+    if (apiSession) {
       const apiStatus = status.toLowerCase().replaceAll(' ', '_');
-      const response = await fetch(`${apiBase()}/admin/orders/${id}/status`, { method: 'PATCH', headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: apiStatus }) });
+      const response = await fetch(`${apiBase()}/admin/orders/${id}/status`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: apiStatus }) });
       if (!response.ok) { notify('Order status could not be saved.'); return; }
     } else {
       persistPreviewOrderOverride(id, { status });
@@ -266,8 +276,8 @@ export default function AdminApp() {
   async function markPaid(id: string) {
     const target = orders.find((order) => order.id === id);
     if (!target || !window.confirm(`Confirm receipt of ${money(target.total)} for ${target.orderNumber} from ${target.expectedSenderName || target.customer}? This will mark the payment paid and email the customer.`)) return;
-    if (apiToken) {
-      const response = await fetch(`${apiBase()}/admin/orders/${id}/payment`, { method: 'PATCH', headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'paid' }) });
+    if (apiSession) {
+      const response = await fetch(`${apiBase()}/admin/orders/${id}/payment`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'paid' }) });
       if (!response.ok) { notify('Payment status could not be saved.'); return; }
     } else {
       persistPreviewOrderOverride(id, { payment: 'Paid', status: 'Confirmed', paymentConfirmedAt: new Date().toISOString(), paymentConfirmedBy: 'owner' });
@@ -276,19 +286,20 @@ export default function AdminApp() {
     notify('Payment status updated. Revenue, customer spend, and analytics recalculated.');
   }
   async function updateMeal(id: string, changes: Partial<AdminMenuMeal>) {
-    if (apiToken) {
-      const response = await fetch(`${apiBase()}/admin/meals/${id}`, { method: 'PATCH', headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(changes) });
+    if (apiSession) {
+      const response = await fetch(`${apiBase()}/admin/meals/${id}`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(changes) });
       if (!response.ok) { notify('Meal update could not be saved.'); return; }
     }
     setMeals((current) => current.map((meal) => meal.id === id ? { ...meal, ...changes } : meal));
     setMenuDraft((current) => ({ ...current, activeMealIds: changes.archived ? current.activeMealIds.filter((mealId) => mealId !== id) : current.activeMealIds }));
   }
   async function saveDraft() {
-    const useApi = Boolean(apiToken);
+    const useApi = apiSession;
     if (useApi) {
       const response = await fetch(`${apiBase()}/admin/menus/${activeMenuId}`, {
         method: 'PATCH',
-        headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ weekLabel: menuDraft.weekLabel, orderDeadline: menuDraft.orderDeadline, deadlineLabel: menuDraft.deadlineLabel, announcement: menuDraft.announcement, pickupWindows: menuDraft.pickupWindows }),
       });
       if (!response.ok) {
@@ -301,19 +312,21 @@ export default function AdminApp() {
     notify('Weekly menu draft saved. It is not public until you publish it.');
   }
   async function publishMenu() {
-    const useApi = Boolean(apiToken);
+    const useApi = apiSession;
     if (useApi) {
       const menuResponse = await fetch(`${apiBase()}/admin/menus/${activeMenuId}`, {
         method: 'PATCH',
-        headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ weekLabel: menuDraft.weekLabel, orderDeadline: menuDraft.orderDeadline, deadlineLabel: menuDraft.deadlineLabel, announcement: menuDraft.announcement, pickupWindows: menuDraft.pickupWindows }),
       });
       const mealResponses = await Promise.all(meals.map((meal) => fetch(`${apiBase()}/admin/meals/${meal.id}`, {
         method: 'PATCH',
-        headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ available: menuDraft.activeMealIds.includes(meal.id) && !meal.archived }),
       })));
-      const publishResponse = menuResponse.ok && mealResponses.every((response) => response.ok) ? await fetch(`${apiBase()}/admin/menus/${activeMenuId}/publish`, { method: 'POST', headers: { Authorization: `Bearer ${apiToken}` } }) : null;
+      const publishResponse = menuResponse.ok && mealResponses.every((response) => response.ok) ? await fetch(`${apiBase()}/admin/menus/${activeMenuId}/publish`, { method: 'POST', credentials: 'include' }) : null;
       if (!publishResponse?.ok) {
         notify('Menu could not be published through the protected API.');
         return;
@@ -336,8 +349,8 @@ export default function AdminApp() {
     downloadCsv('904-kitchen-prep.csv', [['Meal number', 'Meal', 'Category', 'Quantity', 'Revenue'], ...prep.map((meal) => [meal.mealNumber, meal.name, meal.category, meal.quantity, meal.revenue])]);
   }
   async function saveSettings(next: Settings) {
-    if (apiToken) {
-      const response = await fetch(`${apiBase()}/admin/settings`, { method: 'PUT', headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ...next, standardPrice: next.pricing.standardPrice, premiumCharge: next.pricing.premiumCharge }) });
+    if (apiSession) {
+      const response = await fetch(`${apiBase()}/admin/settings`, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...next, standardPrice: next.pricing.standardPrice, premiumCharge: next.pricing.premiumCharge }) });
       if (!response.ok) { notify('Settings could not be saved.'); return; }
     }
     setSettings(next);
@@ -350,7 +363,7 @@ export default function AdminApp() {
       <aside className={`fixed inset-y-0 left-0 z-40 w-[260px] bg-[#102d2b] px-5 py-6 text-[#f1eee6] transition-transform lg:translate-x-0 ${mobileNav ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center justify-between"><a href="/" className="flex items-center gap-3" data-testid="link-admin-brand"><span className="h-12 w-9 overflow-hidden rounded-sm border border-[#e7bd32]/50 bg-[#f1eee6]"><img src="/images/brand/904-meal-prepz-logo.jpeg" alt="904 Meal Prepz logo" className="h-full w-full object-cover object-top" /></span><span className="text-sm font-extrabold leading-tight">904<br /><span className="text-[9px] tracking-[.2em]">OPS</span></span></a><button type="button" onClick={() => setMobileNav(false)} className="lg:hidden" aria-label="Close admin navigation"><X size={20} /></button></div>
         <div className="mt-12"><p className="px-3 text-[10px] font-bold uppercase tracking-[.18em] text-[#e7bd32]">Owner workspace</p><nav className="mt-4 space-y-1" aria-label="Admin navigation">{tabs.map(({ id, route, icon: Icon }) => <button key={id} type="button" onClick={() => { setLocation(route); setMobileNav(false); }} className={`flex w-full items-center gap-3 px-3 py-3 text-left text-sm font-semibold transition-colors ${tab === id ? 'bg-[#e7bd32] text-[#102d2b]' : 'text-[#f1eee6]/65 hover:bg-[#174d49] hover:text-[#f1eee6]'}`} data-testid={`admin-nav-${id.toLowerCase().replace(/\s/g, '-')}`}><Icon size={17} strokeWidth={1.8} />{id}</button>)}</nav></div>
-        <div className="absolute inset-x-5 bottom-6 border-t border-[#f1eee6]/15 pt-5"><p className="text-xs text-[#f1eee6]/50">{settings.showDemoLabel ? 'Demo workspace' : 'Owner workspace'}</p><button type="button" onClick={() => { sessionStorage.removeItem('904-admin-token'); setApiToken(''); setAuthenticated(false); }} className="mt-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[.12em] text-[#f1eee6]/70 hover:text-[#e7bd32]" data-testid="button-admin-logout"><LogOut size={15} /> Sign out</button></div>
+        <div className="absolute inset-x-5 bottom-6 border-t border-[#f1eee6]/15 pt-5"><p className="text-xs text-[#f1eee6]/50">{settings.showDemoLabel ? 'Demo workspace' : 'Owner workspace'}</p><button type="button" onClick={() => { sessionStorage.removeItem('904-admin-preview'); void fetch(`${apiBase()}/admin/logout`, { method: 'POST', credentials: 'include' }).finally(() => { setApiSession(false); setAuthenticated(false); }); }} className="mt-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[.12em] text-[#f1eee6]/70 hover:text-[#e7bd32]" data-testid="button-admin-logout"><LogOut size={15} /> Sign out</button></div>
       </aside>
       <div className="lg:pl-[260px]">
         <header className="sticky top-0 z-30 border-b border-[#173c3a]/10 bg-[#f3f5f2]/95 px-5 py-4 backdrop-blur lg:px-8"><div className="flex items-center justify-between gap-4"><button type="button" onClick={() => setMobileNav(true)} className="lg:hidden" aria-label="Open admin navigation"><MenuIcon size={22} /></button><div><p className="hidden text-[10px] font-bold uppercase tracking-[.18em] text-[#6d817e] sm:block">Sunday, August 30, 2026</p><h1 className="text-xl font-extrabold tracking-[-.03em]">{tab}</h1></div><div className="ml-auto flex items-center gap-3"><span className="hidden items-center gap-2 rounded-full bg-[#e4eee9] px-3 py-2 text-xs font-bold text-[#27625a] sm:flex"><span className="h-2 w-2 rounded-full bg-[#35a579]" /> {settings.showDemoLabel ? 'Live demo data' : 'Live operations'}</span><span className="grid h-9 w-9 place-items-center rounded-full bg-[#e7bd32] text-sm font-black">CJ</span></div></div></header>
@@ -368,24 +381,24 @@ export default function AdminApp() {
           {tab === 'Fulfillment' && <Fulfillment orders={orders} onStatusChange={changeStatus} />}
           {tab === 'Payments' && <Payments orders={orders} onMarkPaid={markPaid} />}
           {tab === 'Settings' && <SettingsPage settings={settings} onSave={saveSettings} />}
-          {tab === 'Gallery' && <GalleryManager token={apiToken} meals={meals} />}
+          {tab === 'Gallery' && <GalleryManager apiSession={apiSession} meals={meals} />}
         </main>
       </div>
       {selectedOrder && <OrderDetail order={selectedOrder} onClose={() => setSelectedOrderId(null)} onStatusChange={changeStatus} onMarkPaid={markPaid} />}
-      {mealEditor && <MealEditor meal={mealEditor === 'new' ? null : meals.find((meal) => meal.id === mealEditor) || null} pricing={settings.pricing} onClose={() => setMealEditor(null)} onSave={async (meal) => { const adding = mealEditor === 'new'; if (apiToken) { const response = await fetch(`${apiBase()}/admin/meals${adding ? '' : `/${meal.id}`}`, { method: adding ? 'POST' : 'PATCH', headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(adding ? { ...meal, menuId: activeMenuId } : meal) }); if (!response.ok) { notify('Meal could not be saved.'); return; } } setMeals((current) => adding ? [...current, meal] : current.map((item) => item.id === meal.id ? meal : item)); setMealEditor(null); notify(adding ? 'Meal added to the library. Add it to a draft menu when ready.' : 'Meal details updated.'); }} />}
+      {mealEditor && <MealEditor meal={mealEditor === 'new' ? null : meals.find((meal) => meal.id === mealEditor) || null} pricing={settings.pricing} onClose={() => setMealEditor(null)} onSave={async (meal) => { const adding = mealEditor === 'new'; if (apiSession) { const response = await fetch(`${apiBase()}/admin/meals${adding ? '' : `/${meal.id}`}`, { method: adding ? 'POST' : 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(adding ? { ...meal, menuId: activeMenuId } : meal) }); if (!response.ok) { notify('Meal could not be saved.'); return; } } setMeals((current) => adding ? [...current, meal] : current.map((item) => item.id === meal.id ? meal : item)); setMealEditor(null); notify(adding ? 'Meal added to the library. Add it to a draft menu when ready.' : 'Meal details updated.'); }} />}
     </div>
   );
 }
 
-function AdminAuthGate({ previewAllowed, onPreview, onAuthenticate }: { previewAllowed: boolean; onPreview: () => void; onAuthenticate: (token: string) => Promise<boolean> }) {
-  const [token, setToken] = useState('');
+function AdminAuthGate({ previewAllowed, onPreview, onAuthenticate }: { previewAllowed: boolean; onPreview: () => void; onAuthenticate: (password: string) => Promise<boolean> }) {
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError('');
-    if (!await onAuthenticate(token)) setError('Owner token was not accepted.');
+    if (!await onAuthenticate(password)) setError('Incorrect password.');
   }
-  return <div className="grid min-h-[100dvh] place-items-center bg-[#073d45] p-5 text-[#f7f4eb]"><div className="w-full max-w-[430px] border border-[#f7f4eb]/15 bg-[#0b6470] p-7 shadow-2xl sm:p-10"><a href="/" className="flex items-center gap-3" data-testid="link-admin-return"><span className="h-16 w-12 overflow-hidden rounded-sm border border-[#efb22d]/60 bg-[#f7f4eb]"><img src="/images/brand/904-meal-prepz-logo.jpeg" alt="904 Meal Prepz logo" className="h-full w-full object-cover object-top" /></span><span className="text-sm font-extrabold leading-tight">904<br /><span className="text-[9px] tracking-[.2em]">MEAL PREPZ OPS</span></span></a><p className="mt-12 text-[10px] font-bold uppercase tracking-[.18em] text-[#efb22d]">Private owner area</p><h1 className="mt-3 text-4xl font-extrabold tracking-[-.05em]">Welcome back.</h1><p className="mt-4 text-sm leading-6 text-[#f7f4eb]/65">Enter the server-configured owner token. It stays in this browser session and is sent only to the protected API.</p><form onSubmit={submit} className="mt-7"><label className="text-[10px] font-bold uppercase tracking-[.14em]">Owner access token<input type="password" required value={token} onChange={(event) => setToken(event.target.value)} className="mt-2 block w-full border border-[#f7f4eb]/25 bg-[#073d45] px-3 py-3 text-sm text-white outline-none focus:border-[#efb22d]" autoComplete="current-password" /></label>{error && <p className="mt-2 text-xs text-[#ffd0c5]">{error}</p>}<button type="submit" className="mt-4 flex w-full items-center justify-center gap-2 bg-[#efb22d] px-5 py-4 text-xs font-extrabold uppercase tracking-[.14em] text-[#073d45]">Sign in securely <ArrowRightIcon /></button></form>{previewAllowed && <button type="button" onClick={onPreview} className="mt-3 w-full border border-[#f7f4eb]/25 px-5 py-3 text-xs font-extrabold uppercase tracking-[.12em]" data-testid="button-admin-preview">Open seeded preview</button>}<p className="mt-8 flex items-center gap-2 text-xs text-[#f7f4eb]/45"><ShieldCheck size={15} /> Secure access boundary / owner only</p></div></div>;
+  return <div className="grid min-h-[100dvh] place-items-center bg-[#073d45] p-5 text-[#f7f4eb]"><div className="w-full max-w-[430px] border border-[#f7f4eb]/15 bg-[#0b6470] p-7 shadow-2xl sm:p-10"><a href="/" className="flex items-center gap-3" data-testid="link-admin-return"><span className="h-16 w-12 overflow-hidden rounded-sm border border-[#efb22d]/60 bg-[#f7f4eb]"><img src="/images/brand/904-meal-prepz-logo.jpeg" alt="904 Meal Prepz logo" className="h-full w-full object-cover object-top" /></span><span className="text-sm font-extrabold leading-tight">904<br /><span className="text-[9px] tracking-[.2em]">MEAL PREPZ OPS</span></span></a><p className="mt-12 text-[10px] font-bold uppercase tracking-[.18em] text-[#efb22d]">Private owner area</p><h1 className="mt-3 text-4xl font-extrabold tracking-[-.05em]">Welcome back.</h1><p className="mt-4 text-sm leading-6 text-[#f7f4eb]/65">Enter your owner password. Your authenticated session is kept in a secure HttpOnly cookie and the password is never stored in this browser.</p><form onSubmit={submit} className="mt-7"><label className="text-[10px] font-bold uppercase tracking-[.14em]">Password<input type="password" required value={password} onChange={(event) => setPassword(event.target.value)} className="mt-2 block w-full border border-[#f7f4eb]/25 bg-[#073d45] px-3 py-3 text-sm text-white outline-none focus:border-[#efb22d]" autoComplete="current-password" /></label>{error && <p className="mt-2 text-xs text-[#ffd0c5]">{error}</p>}<button type="submit" className="mt-4 flex w-full items-center justify-center gap-2 bg-[#efb22d] px-5 py-4 text-xs font-extrabold uppercase tracking-[.14em] text-[#073d45]">Sign in securely <ArrowRightIcon /></button></form>{previewAllowed && <button type="button" onClick={onPreview} className="mt-3 w-full border border-[#f7f4eb]/25 px-5 py-3 text-xs font-extrabold uppercase tracking-[.12em]" data-testid="button-admin-preview">Open seeded preview</button>}<p className="mt-8 flex items-center gap-2 text-xs text-[#f7f4eb]/45"><ShieldCheck size={15} /> Secure access boundary / owner only</p></div></div>;
 }
 
 function Overview({ orders, customers, onOrderClick, onTab }: { orders: AdminOrder[]; customers: AdminCustomer[]; onOrderClick: (order: AdminOrder) => void; onTab: (tab: AdminTab) => void }) {
@@ -485,27 +498,28 @@ function SettingsPage({ settings, onSave }: { settings: Settings; onSave: (setti
 }
 
 type GalleryRecord = { id: string; title: string; description: string; mediaType: 'image' | 'video'; mediaPath: string; posterPath: string; linkedMealId: string | null; category: string; status: 'draft' | 'published' | 'archived'; displayOrder: number; featured: boolean };
-function GalleryManager({ token, meals }: { token: string; meals: AdminMenuMeal[] }) {
+function GalleryManager({ apiSession, meals }: { apiSession: boolean; meals: AdminMenuMeal[] }) {
   const api = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
   const [items, setItems] = useState<GalleryRecord[]>([]);
   const [draft, setDraft] = useState<Partial<GalleryRecord> | null>(null);
   const [error, setError] = useState('');
   async function load() {
-    const response = await fetch(`${api}/admin/gallery`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!apiSession) return;
+    const response = await fetch(`${api}/admin/gallery`, { credentials: 'include' });
     if (response.ok) setItems(await response.json());
   }
-  useEffect(() => { void load(); }, [token]);
+  useEffect(() => { void load(); }, [apiSession]);
   async function save() {
     if (!draft?.title || !draft.mediaPath || !draft.mediaType) { setError('Title, media type, and a persistent media path are required.'); return; }
-    const response = await fetch(`${api}/admin/gallery${draft.id ? `/${draft.id}` : ''}`, { method: draft.id ? 'PATCH' : 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(draft) });
+    const response = await fetch(`${api}/admin/gallery${draft.id ? `/${draft.id}` : ''}`, { method: draft.id ? 'PATCH' : 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(draft) });
     if (!response.ok) { setError((await response.json()).error || 'Could not save media.'); return; }
     setDraft(null); setError(''); void load();
   }
   async function update(id: string, changes: Partial<GalleryRecord>) {
-    await fetch(`${api}/admin/gallery/${id}`, { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(changes) }); void load();
+    await fetch(`${api}/admin/gallery/${id}`, { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(changes) }); void load();
   }
   async function upload(file: File) {
-    const response = await fetch(`${api}/admin/gallery/upload-url`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }) });
+    const response = await fetch(`${api}/admin/gallery/upload-url`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }) });
     const payload = await response.json();
     if (!response.ok) { setError(payload.error || 'Upload could not start.'); return; }
     const uploaded = await fetch(payload.uploadURL, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
@@ -516,7 +530,7 @@ function GalleryManager({ token, meals }: { token: string; meals: AdminMenuMeal[
     {draft && <div className="mb-6 border border-[#e7d58d] bg-[#fff9df] p-5"><div className="grid gap-4 sm:grid-cols-2"><label className="text-xs font-bold uppercase tracking-[.1em]">Title<input value={draft.title || ''} onChange={(e) => setDraft({ ...draft, title: e.target.value })} className="mt-2 w-full border bg-white p-3 text-sm normal-case tracking-normal" /></label><label className="text-xs font-bold uppercase tracking-[.1em]">Media path / uploaded object URL<input value={draft.mediaPath || ''} onChange={(e) => setDraft({ ...draft, mediaPath: e.target.value })} placeholder="/objects/gallery/..." className="mt-2 w-full border bg-white p-3 text-sm normal-case tracking-normal" /></label><label className="text-xs font-bold uppercase tracking-[.1em]">Type<select value={draft.mediaType} onChange={(e) => setDraft({ ...draft, mediaType: e.target.value as GalleryRecord['mediaType'] })} className="mt-2 w-full border bg-white p-3 text-sm normal-case tracking-normal"><option value="image">Image</option><option value="video">Video</option></select></label><label className="text-xs font-bold uppercase tracking-[.1em]">Linked meal<select value={draft.linkedMealId || ''} onChange={(e) => setDraft({ ...draft, linkedMealId: e.target.value || null })} className="mt-2 w-full border bg-white p-3 text-sm normal-case tracking-normal"><option value="">No linked meal</option>{meals.map((meal) => <option key={meal.id} value={meal.id}>{meal.name}</option>)}</select></label><label className="text-xs font-bold uppercase tracking-[.1em]">Category<input value={draft.category || ''} onChange={(e) => setDraft({ ...draft, category: e.target.value })} className="mt-2 w-full border bg-white p-3 text-sm normal-case tracking-normal" /></label><label className="text-xs font-bold uppercase tracking-[.1em]">Poster path<input value={draft.posterPath || ''} onChange={(e) => setDraft({ ...draft, posterPath: e.target.value })} className="mt-2 w-full border bg-white p-3 text-sm normal-case tracking-normal" /></label></div><label className="mt-4 block text-xs font-bold uppercase tracking-[.1em]">Description<textarea value={draft.description || ''} onChange={(e) => setDraft({ ...draft, description: e.target.value })} className="mt-2 min-h-20 w-full border bg-white p-3 text-sm normal-case tracking-normal" /></label><div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={save} className="bg-[#173c3a] px-4 py-3 text-xs font-bold uppercase tracking-[.1em] text-white">Save media</button><button type="button" onClick={() => setDraft(null)} className="border px-4 py-3 text-xs font-bold uppercase tracking-[.1em]">Cancel</button>{error && <span className="p-3 text-sm text-[#a14935]">{error}</span>}</div></div>}
     <div className="space-y-3">{items.map((item) => <div key={item.id} className="grid gap-3 border border-[#173c3a]/10 bg-white p-4 sm:grid-cols-[1fr_auto] sm:items-center">
       <div>{item.mediaType === 'video' ? <video src={item.mediaPath} poster={item.posterPath || undefined} muted playsInline controls preload="metadata" className="mb-3 h-24 w-40 object-cover" /> : <img src={item.mediaPath} alt="" loading="lazy" className="mb-3 h-24 w-40 object-cover" />}<strong>{item.title}</strong><p className="text-xs text-[#738681]">{item.category || 'Uncategorized'}{item.linkedMealId ? ` / linked meal: ${meals.find((m) => m.id === item.linkedMealId)?.name || 'past meal'}` : ''}</p><p className="text-xs text-[#738681]">Order {item.displayOrder} / {item.featured ? 'Featured' : 'Standard'}</p></div>
-      <div className="flex flex-wrap gap-2"><select value={item.status} onChange={(e) => void update(item.id, { status: e.target.value as GalleryRecord['status'] })} className="border p-2 text-xs"><option>draft</option><option>published</option><option>archived</option></select><button type="button" onClick={() => void update(item.id, { featured: !item.featured })} className="border px-3 py-2 text-xs font-bold">{item.featured ? 'Unfeature' : 'Feature'}</button><button type="button" onClick={() => void update(item.id, { displayOrder: Math.max(0, item.displayOrder - 1) })} className="border px-3 py-2 text-xs font-bold">Move up</button><button type="button" onClick={() => void update(item.id, { displayOrder: item.displayOrder + 1 })} className="border px-3 py-2 text-xs font-bold">Move down</button><button type="button" onClick={() => setDraft(item)} className="border px-3 py-2 text-xs font-bold uppercase">Edit</button><button type="button" onClick={() => { if (window.confirm('Permanently delete this media? This cannot be undone.')) void fetch(`${api}/admin/gallery/${item.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }).then(load); }} className="border border-[#a14935] px-3 py-2 text-xs font-bold uppercase text-[#a14935]">Delete</button></div>
+      <div className="flex flex-wrap gap-2"><select value={item.status} onChange={(e) => void update(item.id, { status: e.target.value as GalleryRecord['status'] })} className="border p-2 text-xs"><option>draft</option><option>published</option><option>archived</option></select><button type="button" onClick={() => void update(item.id, { featured: !item.featured })} className="border px-3 py-2 text-xs font-bold">{item.featured ? 'Unfeature' : 'Feature'}</button><button type="button" onClick={() => void update(item.id, { displayOrder: Math.max(0, item.displayOrder - 1) })} className="border px-3 py-2 text-xs font-bold">Move up</button><button type="button" onClick={() => void update(item.id, { displayOrder: item.displayOrder + 1 })} className="border px-3 py-2 text-xs font-bold">Move down</button><button type="button" onClick={() => setDraft(item)} className="border px-3 py-2 text-xs font-bold uppercase">Edit</button><button type="button" onClick={() => { if (window.confirm('Permanently delete this media? This cannot be undone.')) void fetch(`${api}/admin/gallery/${item.id}`, { method: 'DELETE', credentials: 'include' }).then(load); }} className="border border-[#a14935] px-3 py-2 text-xs font-bold uppercase text-[#a14935]">Delete</button></div>
     </div>)}</div>
   </Panel>;
 }

@@ -34,7 +34,7 @@ Premium, mobile-first single-page storefront for a Jacksonville meal-prep busine
 - `artifacts/904-meal-prepz/public/images/brand/` — local editorial/brand photography
 - `artifacts/904-meal-prepz/public/videos/` — local browser-ready kitchen and meal footage
 - `artifacts/904-meal-prepz/README.md` — local run, Vercel handoff, admin setup, content editing, and payment integration notes
-- `artifacts/api-server/src/routes/admin.ts` — token-protected admin routes and public order persistence boundary
+- `artifacts/api-server/src/routes/admin.ts` — password-session-protected admin routes and public order persistence boundary
 - `lib/db/src/schema/mealPrep.ts` — PostgreSQL-compatible menu, meal, customer, order, fulfillment, payment, and admin tables
 
 ## Architecture decisions
@@ -42,7 +42,7 @@ Premium, mobile-first single-page storefront for a Jacksonville meal-prep busine
 - Portable weekly preorder frontend with React state and `localStorage` selection persistence for the no-backend demo; when `VITE_API_BASE_URL` is configured, order creation moves to the server boundary.
 - Menu content is local TypeScript data so the first handoff does not depend on a product API.
 - Checkout presents Square / Apple Pay as the preferred method but carries Cash App, Venmo, Zelle, and other manual methods through the same normalized order record. Orders start payment-pending until Square confirms success or an owner uses the protected Mark paid action for a manual transfer.
-- Admin preview data is never presented as production data. Protected API routes require `ADMIN_API_TOKEN`; database access is configured with `DATABASE_URL`.
+- Admin preview data is never presented as production data. Protected API routes require a database-backed HttpOnly session created with `ADMIN_PASSWORD`; database access is configured with `DATABASE_URL`.
 - All used photography is committed under `public/` and referenced with portable root-relative paths.
 
 ## Product
