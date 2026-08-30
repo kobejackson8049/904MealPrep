@@ -1,0 +1,303 @@
+ADD ADMIN GALLERY MANAGEMENT
+
+Add a new admin page:
+
+/admin/gallery
+
+Add Gallery to the existing admin navigation.
+
+The business owner must be able to manage everything that appears on the public customer-facing /gallery page without editing code.
+
+⸻
+
+GALLERY MEDIA LIBRARY
+
+Admins should be able to upload:
+
+* Photos
+* Short videos
+
+Each gallery item should support:
+
+* Title
+* Optional description
+* Media type: Image or Video
+* Optional linked meal
+* Optional category
+* Upload date
+* Display status
+* Display order
+
+Example titles:
+
+* Jerk Chicken Bowl
+* Sunday Meal Prep
+* Behind the Scenes
+* Steak Egg & Cheese Croissant
+* Weekly Prep
+
+Do NOT require every gallery upload to be connected to a meal.
+
+Some gallery content may simply be:
+
+* Kitchen prep
+* Behind-the-scenes video
+* Catering photos
+* Customer order stacks
+* Meal-prep process
+* Lifestyle/business content
+
+⸻
+
+LINK GALLERY MEDIA TO MEALS
+
+When appropriate, allow admin to optionally select a meal from the Meal Library.
+
+Example:
+
+Gallery image:
+
+Teriyaki Chicken Bowl
+
+Linked Meal:
+
+Teriyaki Chicken Bowl
+
+If that meal is currently available on the published weekly menu, the public gallery can show:
+
+Available This Week
+
+and optionally provide:
+
+Add to Order
+
+or:
+
+View This Week’s Menu
+
+If the meal is not currently being offered, do NOT make it appear orderable.
+
+It may instead show:
+
+Past Menu
+
+or simply display as gallery content.
+
+⸻
+
+PUBLIC GALLERY CONNECTION
+
+The public /gallery page must populate from the admin Gallery Manager.
+
+Do NOT maintain a separate hardcoded gallery.
+
+When admin publishes a new gallery image/video:
+
+→ it appears on /gallery
+
+When admin archives an item:
+
+→ it disappears from /gallery
+
+When admin edits the title:
+
+→ public title updates
+
+When admin changes display order:
+
+→ public gallery order updates
+
+Use ONE shared gallery data source.
+
+⸻
+
+ADD MEDIA
+
+Add a clear:
+
++ ADD MEDIA
+
+button.
+
+Clicking it should open a form containing:
+
+* Upload image/video
+* Title
+* Description
+* Link to Meal Library item (optional)
+* Category/tag
+* Display status
+
+Allow the admin to preview media before publishing.
+
+⸻
+
+MEDIA STATUS
+
+Support:
+
+* Draft
+* Published
+* Archived
+
+Draft
+
+should only be visible to admins.
+
+Published
+
+appears on the public Gallery.
+
+Archived
+
+remains stored in the admin system but does NOT appear publicly.
+
+⸻
+
+ARCHIVE AND DELETE
+
+Each gallery item should have:
+
+* Edit
+* Archive
+* Delete
+
+Archiving should be the preferred option.
+
+Before permanent deletion, show confirmation:
+
+Permanently delete this media? This cannot be undone.
+
+Do not delete anything accidentally with a single click.
+
+⸻
+
+REORDER GALLERY CONTENT
+
+Allow admin to control the order items appear publicly.
+
+Prefer simple drag-and-drop ordering if reliable.
+
+Otherwise provide:
+
+* Move Up
+* Move Down
+* Featured toggle
+
+Allow selected content to be marked:
+
+Featured
+
+Featured content can appear larger or near the top of /gallery.
+
+⸻
+
+VIDEO SUPPORT
+
+Videos should support:
+
+* Thumbnail/poster image
+* Play/pause controls
+* Muted preview where appropriate
+* playsinline
+* Mobile-friendly playback
+
+Do not autoplay multiple videos with sound.
+
+Optimize video loading so several uploads do not make the Gallery page extremely slow.
+
+⸻
+
+IMPORTANT MEDIA STORAGE REQUIREMENT
+
+Admin-uploaded media requires persistent production storage.
+
+Do NOT save production uploads only inside:
+
+* Replit runtime filesystem
+* temporary folders
+* temporary URLs
+* MemStorage
+
+Build a portable storage abstraction that can connect to client-owned cloud/object storage in production.
+
+Store the permanent media URL and metadata in the database.
+
+Keep storage configuration environment-variable based so the system can later be transferred:
+
+Replit → GitHub → Vercel → client ownership
+
+Do not hardcode Replit URLs.
+
+⸻
+
+GALLERY ANALYTICS PREPARATION
+
+Structure the gallery so analytics can later track things such as:
+
+* Views
+* Clicks into ordering
+* Most-viewed meals
+
+Do NOT overbuild analytics right now unless the existing system already supports it.
+
+⸻
+
+ADMIN NAVIGATION UPDATE
+
+The admin navigation should now include:
+
+* Overview
+* Orders
+* Kitchen Prep
+* Fulfillment
+* Meal Library
+* Weekly Menu
+* Gallery
+* Customers
+* Analytics
+* Payments
+* Settings
+
+Keep Gallery as its own dedicated page.
+
+Do NOT combine it into Meal Library.
+
+⸻
+
+DO NOT BREAK EXISTING FUNCTIONALITY
+
+Keep the current public Gallery design unless changes are necessary to support dynamic admin content.
+
+Do NOT redesign the entire website.
+
+Preserve:
+
+* Existing branding
+* Public multi-page structure
+* Weekly Menu
+* Build Your Order
+* Admin dashboard
+* Customer accounts
+* Payment architecture
+* Meal Library
+* GitHub/Vercel portability
+
+This is a targeted feature addition.
+
+Test:
+
+1. Upload image.
+2. Upload video.
+3. Save as Draft.
+4. Publish.
+5. Confirm it appears publicly.
+6. Edit title.
+7. Confirm public page updates.
+8. Link media to a meal.
+9. Archive.
+10. Confirm it disappears publicly.
+11. Restore archived item if supported.
+12. Delete with confirmation.
+13. Test mobile.
+14. Confirm production build still succeeds.

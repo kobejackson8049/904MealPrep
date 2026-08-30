@@ -1,0 +1,678 @@
+ADD MANUAL PAYMENT CONFIRMATION + EMAIL NOTIFICATIONS
+
+Update the existing 904 Meal Prepz ordering/payment system.
+
+IMPORTANT:
+
+Do NOT rebuild the site or admin dashboard.
+
+Preserve all existing:
+
+* Customer ordering
+* Weekly menu
+* Admin dashboard
+* Orders
+* Kitchen Prep
+* Fulfillment
+* Customers
+* Analytics
+* Payments
+* Gallery
+* Meal Library
+* Customer accounts
+* GitHub/Vercel portability
+
+DO NOT BREAK ANYTHING THAT CURRENTLY WORKS.
+
+⸻
+
+1. PAYMENT METHODS
+
+Square should remain the visually preferred/default payment method.
+
+Also support:
+
+* Cash App
+* Zelle
+* Venmo
+
+Apple Pay may be available through the integrated payment provider where supported.
+
+All payment methods MUST create orders in the SAME normalized order system.
+
+⸻
+
+2. MANUAL PAYMENT WORKFLOW
+
+Cash App, Zelle and Venmo are considered manual/external payment methods because the business owner may need to verify receipt outside the website.
+
+Customer should still complete the normal checkout process:
+
+1. Select meals
+2. Choose pickup/delivery
+3. Enter customer information
+4. Select payment method
+5. Review order
+6. Submit order
+
+If Cash App, Zelle or Venmo is selected, show a dedicated payment instruction screen.
+
+⸻
+
+3. CASH APP EXAMPLE
+
+Example customer:
+
+Emily has $64 worth of meals in her order.
+
+Emily selects:
+
+Cash App
+
+Show:
+
+Amount Due
+
+$64.00
+
+Send payment to:
+
+$904MealPrepz
+
+Also display a Cash App QR code if one has been configured by the admin.
+
+Underneath, show:
+
+What name will the payment come from?
+
+Input:
+
+Name on Cash App account
+
+Example:
+
+Emily Carter
+
+Also strongly encourage the customer to enter the order number in the payment note:
+
+Please include Order #904-1057 in your payment note when possible.
+
+Then provide:
+
+I’ve Sent / Will Send Payment
+
+button.
+
+Do NOT falsely tell the customer that the website has verified payment at this stage.
+
+⸻
+
+4. ZELLE AND VENMO
+
+Use the same workflow for:
+
+Zelle
+
+Display:
+
+* configured Zelle email/phone
+* optional uploaded Zelle QR code
+* amount due
+* order number
+* sender/account name input
+
+Venmo
+
+Display:
+
+* configured Venmo handle
+* optional Venmo QR code
+* amount due
+* order number
+* sender/account name input
+
+The owner should configure all payment handles and QR codes from Admin Settings.
+
+Do NOT hardcode them into components.
+
+⸻
+
+5. QR CODE SUPPORT
+
+Add payment settings in:
+
+/admin/settings
+
+Allow owner to configure:
+
+Cash App
+
+* Cash App tag
+* Upload Cash App QR code
+* Enable/disable Cash App
+
+Venmo
+
+* Venmo handle
+* Upload Venmo QR code
+* Enable/disable Venmo
+
+Zelle
+
+* Zelle phone/email
+* Upload Zelle QR code if their financial institution provides one
+* Enable/disable Zelle
+
+Do NOT assume every payment service has a universally generated QR format.
+
+Prefer allowing the business owner to upload the official QR code produced by their actual payment service/account.
+
+Store these files using the same portable persistent media-storage architecture as other admin uploads.
+
+Do NOT use temporary Replit file URLs.
+
+⸻
+
+6. IMPORTANT MOBILE QR EXPERIENCE
+
+A customer may already be viewing the website ON THEIR PHONE.
+
+Therefore do not rely only on:
+
+Scan this QR code
+
+Also display:
+
+* payment handle
+* Copy button
+* amount due
+* order number
+
+Example:
+
+Cash App
+
+$904MealPrepz
+
+[COPY TAG]
+
+$64.00 due
+
+Order #904-1057
+
+If a safe supported payment deep-link is configured later, architecture may support it, but do not invent unsupported links.
+
+⸻
+
+7. MANUAL PAYMENT CUSTOMER INFORMATION
+
+When Cash App/Zelle/Venmo is chosen, collect:
+
+Payment sender name
+
+This means:
+
+The name the owner should expect to see in Cash App, Venmo, or Zelle.
+
+Store it on the payment record.
+
+Example database information:
+
+* Order: #904-1057
+* Customer: Emily Carter
+* Payment method: Cash App
+* Amount: $64
+* Expected sender name: Emily Carter
+* Payment status: Payment Pending
+
+IMPORTANT:
+
+The sender name is ONLY a reconciliation aid.
+
+Do NOT automatically mark an order paid merely because the customer typed a name.
+
+Owner verification is still required.
+
+⸻
+
+8. CREATE THE ORDER IMMEDIATELY
+
+Once Emily confirms her manual payment selection:
+
+Create the order in the database immediately.
+
+It should populate:
+
+* Admin Overview
+* Orders
+* Kitchen Prep
+* Fulfillment
+* Customers
+* Payments
+
+Payment status:
+
+Payment Pending
+
+Order status:
+
+Awaiting Payment Confirmation
+
+Do NOT count this order as paid revenue yet.
+
+Keep pending revenue separate.
+
+⸻
+
+9. ADMIN PENDING PAYMENT QUEUE
+
+Improve /admin/payments.
+
+Add a prominent:
+
+Pending Confirmation
+
+section.
+
+Each pending manual payment should show:
+
+* Order number
+* Customer name
+* Phone
+* Email
+* Amount due
+* Payment method
+* Expected sender name
+* Date/time submitted
+* Pickup/delivery
+
+Example:
+
+#904-1057
+
+Emily Carter
+
+Cash App
+
+Expected sender: Emily Carter
+
+$64.00
+
+PAYMENT PENDING
+
+[VIEW ORDER]
+
+[CONFIRM PAYMENT]
+
+⸻
+
+10. ADMIN PAYMENT CONFIRMATION
+
+When the owner checks their actual Cash App/Zelle/Venmo account and confirms the money was received, they can click:
+
+CONFIRM PAYMENT
+
+Show a confirmation dialog:
+
+Confirm that $64.00 was received from Emily Carter through Cash App?
+
+Buttons:
+
+Cancel
+
+Yes, Confirm Payment
+
+After confirmation:
+
+Payment status becomes:
+
+Paid
+
+Order status becomes:
+
+Confirmed
+
+Do NOT automatically mark fulfillment as Completed.
+
+Food fulfillment remains separate.
+
+⸻
+
+11. DASHBOARD UPDATES AFTER PAYMENT
+
+As soon as the admin confirms payment:
+
+Automatically update:
+
+* Paid revenue
+* Pending revenue
+* Paid order count
+* Pending payment count
+* Revenue by payment method
+* Customer lifetime spend
+* Average order value where appropriate
+* Payment analytics
+* Customer order history
+
+Example:
+
+Before:
+
+Pending Revenue: $132
+
+Paid Revenue: $251.50
+
+After confirming Emily’s $64 payment:
+
+Pending Revenue decreases by $64.
+
+Paid Revenue increases by $64.
+
+The SAME underlying order/payment data must drive every number.
+
+Do NOT hardcode dashboard changes.
+
+⸻
+
+12. ADMIN NOTIFICATIONS
+
+When a customer submits an order using a manual payment method, create an admin notification.
+
+Example:
+
+🔔 New payment confirmation needed
+
+Emily Carter submitted Order #904-1057 for $64 using Cash App.
+
+Admin notifications should appear in the admin interface.
+
+Add a notification/bell indicator if one does not already exist.
+
+Support:
+
+* Unread
+* Read
+
+Clicking the notification should open the associated order/payment.
+
+⸻
+
+13. EMAIL — ORDER RECEIVED
+
+After Emily submits the order, automatically send an email.
+
+Subject example:
+
+We received your 904 Meal Prepz order
+
+Email should contain:
+
+* Emily’s name
+* Order number
+* Meals
+* Quantities
+* Order total
+* Pickup/delivery information
+* Payment method
+
+Because this is a manual payment, clearly state:
+
+Payment Pending
+
+We have your order. Once your payment is verified, we'll send you a confirmation.
+
+Include:
+
+* amount due
+* payment handle/instructions
+* order number/reference
+
+Do NOT call the order paid yet.
+
+⸻
+
+14. EMAIL — PAYMENT CONFIRMED
+
+When the owner clicks:
+
+Confirm Payment
+
+automatically send another email.
+
+Subject:
+
+Payment confirmed — your 904 Meal Prepz order is confirmed
+
+Include:
+
+* Customer name
+* Order number
+* Amount received
+* Payment method
+* Meal summary
+* Pickup/delivery details
+
+Clearly show:
+
+✅ PAID
+
+and:
+
+✅ ORDER CONFIRMED
+
+⸻
+
+15. FULFILLMENT EMAILS
+
+Structure email notifications so additional statuses can send appropriate messages.
+
+Examples:
+
+Ready for Pickup
+
+Your 904 Meal Prepz order is ready for pickup.
+
+Out for Delivery
+
+Your 904 Meal Prepz order is on the way.
+
+Delivered / Picked Up
+
+Your order has been completed.
+
+Avoid sending excessive emails for every minor internal status.
+
+⸻
+
+16. SQUARE AUTOMATION
+
+Square should work differently because successful integrated payments can be verified by the payment provider.
+
+Successful Square payment:
+
+* Create/update order
+* Payment = Paid
+* Order = Confirmed
+* Send confirmation email
+* Update analytics automatically
+
+Manual owner confirmation should NOT be necessary when the Square provider has securely confirmed successful payment.
+
+⸻
+
+17. ORDER VS PAYMENT VS FULFILLMENT STATUS
+
+Keep these concepts separate.
+
+PAYMENT STATUS
+
+* Payment Pending
+* Paid
+* Failed
+* Refunded
+
+ORDER STATUS
+
+* Awaiting Payment Confirmation
+* Confirmed
+* Cancelled
+
+FULFILLMENT STATUS
+
+* Not Started
+* Preparing
+* Packed
+* Ready for Pickup
+* Out for Delivery
+* Picked Up
+* Delivered
+
+Do NOT use one status field for everything.
+
+This is very important.
+
+⸻
+
+18. CUSTOMER ACCOUNT CONNECTION
+
+If Emily is logged in, her /account page should initially show:
+
+Order #904-1057
+
+Payment Pending
+
+Once admin confirms payment, it should automatically change to:
+
+Paid / Confirmed
+
+Her account should use the SAME order/payment record as Admin.
+
+No duplicate system.
+
+⸻
+
+19. EMAIL ADDRESS REQUIREMENT
+
+Since important order confirmations will be emailed, require a valid email address during checkout.
+
+Also collect:
+
+* Customer name
+* Phone
+
+Clearly explain that the email is used for:
+
+* Order confirmation
+* Payment confirmation
+* Important fulfillment updates
+
+⸻
+
+20. EMAIL INFRASTRUCTURE
+
+Build email sending using a portable transactional-email provider abstraction suitable for production deployment.
+
+Do NOT depend on Replit-specific email functionality.
+
+Keep credentials in environment variables.
+
+Never commit API keys.
+
+For demo mode, emails may be safely previewed/logged if no production email provider has been connected.
+
+Clearly distinguish demo email behavior from actual delivered production emails.
+
+⸻
+
+21. ADMIN PAYMENT HISTORY
+
+Maintain an audit history for manual payment confirmations.
+
+Store:
+
+* Order
+* Payment method
+* Amount
+* Expected sender name
+* When customer submitted
+* When payment was confirmed
+* Admin who confirmed it
+
+This helps prevent confusion if more than one employee eventually uses the system.
+
+⸻
+
+22. SECURITY
+
+Never request or store:
+
+* Cash App passwords
+* Venmo passwords
+* Zelle passwords
+* Bank usernames/passwords
+* Apple Pay credentials
+* Card numbers directly
+
+Manual payment confirmation is simply reconciliation between the website order and the business owner’s existing payment account.
+
+⸻
+
+23. FINAL CUSTOMER EXAMPLE TO TEST
+
+Test this entire flow:
+
+Emily adds meals totaling $64.
+
+Emily enters:
+
+* Name
+* Email
+* Phone
+* Address if delivery
+
+Emily chooses:
+
+Cash App
+
+Website displays:
+
+* Cash App tag
+* QR code if configured
+* $64 amount
+* Order number
+
+Emily enters:
+
+Name payment will come from: Emily Carter
+
+Emily confirms.
+
+Then:
+
+1. Order appears in Admin.
+2. Payment shows Payment Pending.
+3. Admin receives notification.
+4. Emily receives Order Received / Payment Pending email.
+5. Owner checks Cash App.
+6. Owner verifies $64 from Emily Carter.
+7. Owner clicks Confirm Payment.
+8. Payment becomes Paid.
+9. Order becomes Confirmed.
+10. Dashboard paid revenue increases by $64.
+11. Pending amount decreases by $64.
+12. Cash App revenue increases by $64.
+13. Emily’s lifetime spend increases appropriately.
+14. Emily receives payment-confirmation email.
+15. Kitchen Prep and Fulfillment continue using the same order.
+
+Every page and number must derive from the same database records.
+
+⸻
+
+DO NOT BREAK ANYTHING
+
+This is a targeted extension of the existing payment/order architecture.
+
+Preserve the current design and all working functionality.
+
+Run production build and full regression tests before finishing.
