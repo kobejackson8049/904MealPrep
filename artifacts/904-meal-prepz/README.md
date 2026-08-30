@@ -58,7 +58,7 @@ The shared API lives in `artifacts/api-server`; the shared PostgreSQL-compatible
 Required production environment:
 
 - `DATABASE_URL` — PostgreSQL connection string for the API/schema package
-- `ADMIN_API_TOKEN` — secret token required by all `/api/admin/*` routes; send it as `Authorization: Bearer ...` or `x-admin-token`
+- `ADMIN_PASSWORD` — server-only owner password used to create a database-backed HttpOnly admin session
 - `VITE_API_BASE_URL` — optional public HTTPS API base URL; leave unset for the same-origin Vercel API
 - `PAYMENT_CASH_APP_INSTRUCTIONS`, `PAYMENT_VENMO_INSTRUCTIONS`, `PAYMENT_ZELLE_INSTRUCTIONS`, `PAYMENT_OTHER_INSTRUCTIONS` — server-side instructions returned with manual payment orders
 - `VITE_PAYMENT_CASH_APP_INSTRUCTIONS`, `VITE_PAYMENT_VENMO_INSTRUCTIONS`, `VITE_PAYMENT_ZELLE_INSTRUCTIONS`, `VITE_PAYMENT_OTHER_INSTRUCTIONS` — public checkout copy for the same configured manual payment instructions
