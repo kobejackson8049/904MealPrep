@@ -165,8 +165,13 @@ async function withDatabase(res: Response, work: (database: DbModule) => Promise
   try {
     await work(await loadDb());
   } catch (error) {
+    const reason = typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
+      ? error.code.slice(0, 40)
+      : "DATABASE_UNAVAILABLE";
+    console.error("Persistent database operation failed", { reason });
     res.status(503).json({
       error: "Persistent database is not configured or is temporarily unavailable",
+      reason,
       ...(process.env.NODE_ENV === "development" ? { detail: error instanceof Error ? error.message : String(error) } : {}),
     });
   }
