@@ -166,6 +166,10 @@ importers:
         version: 5.9.3
 
   artifacts/904-meal-prepz:
+    dependencies:
+      '@workspace/api-server':
+        specifier: workspace:*
+        version: link:../api-server
     devDependencies:
       '@hookform/resolvers':
         specifier: ^3.10.0
