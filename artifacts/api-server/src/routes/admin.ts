@@ -1,6 +1,6 @@
-import { randomUUID, timingSafeEqual } from "node:crypto";
+import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, gt, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { sendTransactionalEmail } from "../lib/email";
 
@@ -108,6 +108,26 @@ function privateObjectLocation(objectId: string) {
   if (parts.length < 2) throw new Error("PRIVATE_OBJECT_DIR is not configured");
   return { bucketName: parts[0], objectName: `${parts.slice(1).join("/")}/gallery/${objectId}` };
 }
+
+const adminSessionCookie = "904_admin_session";
+const adminSessionDurationMs = 12 * 60 * 60 * 1000;
+
+function readCookie(req: Request, name: string) {
+  const header = req.header("cookie") || "";
+  const entry = header.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name}=`));
+  return entry ? decodeURIComponent(entry.slice(name.length + 1)) : "";
+}
+
+function secretsMatch(expectedValue: string, providedValue: string) {
+  const expected = Buffer.from(expectedValue);
+  const actual = Buffer.from(providedValue);
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
+
+function setAdminSessionCookie(res: Response, value: string, maxAgeSeconds: number) {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  res.setHeader("Set-Cookie", `${adminSessionCookie}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSeconds}${secure}`);
+}
 async function signedObjectUrl(bucketName: string, objectName: string, method: "GET" | "PUT") {
   const response = await fetch("http://127.0.0.1:1106/object-storage/signed-object-url", {
     method: "POST",
@@ -119,21 +139,26 @@ async function signedObjectUrl(bucketName: string, objectName: string, method: "
   return (await response.json() as { signed_url: string }).signed_url;
 }
 
-function hasAdminToken(req: Request) {
-  const configured = process.env.ADMIN_API_TOKEN;
-  const provided = req.header("authorization")?.replace(/^Bearer\s+/i, "") || req.header("x-admin-token");
-  if (!configured || !provided) return false;
-  const expected = Buffer.from(configured);
-  const actual = Buffer.from(provided);
-  return expected.length === actual.length && timingSafeEqual(expected, actual);
+async function hasAdminSession(req: Request) {
+  const id = readCookie(req, adminSessionCookie);
+  if (!id) return false;
+  const { db, adminSessionsTable } = await loadDb();
+  const [session] = await db.select({ id: adminSessionsTable.id }).from(adminSessionsTable)
+    .where(and(eq(adminSessionsTable.id, id), gt(adminSessionsTable.expiresAt, new Date())))
+    .limit(1);
+  return Boolean(session);
 }
 
-export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
-  if (!hasAdminToken(req)) {
-    res.status(401).json({ error: "Admin authentication required" });
-    return;
+export async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!(await hasAdminSession(req))) {
+      res.status(401).json({ error: "Admin authentication required" });
+      return;
+    }
+    next();
+  } catch {
+    res.status(503).json({ error: "Admin session storage is unavailable" });
   }
-  next();
 }
 
 async function withDatabase(res: Response, work: (database: DbModule) => Promise<void>) {
@@ -158,8 +183,42 @@ async function queueEmail(db: any, emailEventsTable: any, orderId: string, event
   }
 }
 
+router.post("/admin/login", async (req, res): Promise<void> => {
+  const configuredPassword = process.env.ADMIN_PASSWORD;
+  const providedPassword = typeof req.body?.password === "string" ? req.body.password : "";
+  if (!configuredPassword) {
+    res.status(503).json({ error: "Admin password is not configured" });
+    return;
+  }
+  if (!secretsMatch(configuredPassword, providedPassword)) {
+    res.status(401).json({ error: "Incorrect password" });
+    return;
+  }
+  await withDatabase(res, async ({ db, adminSessionsTable }) => {
+    const id = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + adminSessionDurationMs);
+    await db.insert(adminSessionsTable).values({ id, expiresAt });
+    setAdminSessionCookie(res, id, Math.floor(adminSessionDurationMs / 1000));
+    res.json({ authenticated: true });
+  });
+});
+
+router.post("/admin/logout", async (req, res): Promise<void> => {
+  const id = readCookie(req, adminSessionCookie);
+  if (id) {
+    try {
+      const { db, adminSessionsTable } = await loadDb();
+      await db.delete(adminSessionsTable).where(eq(adminSessionsTable.id, id));
+    } catch {
+      // Clearing the browser cookie is still safe if the session store is unavailable.
+    }
+  }
+  setAdminSessionCookie(res, "", 0);
+  res.status(204).end();
+});
+
 router.get("/admin/session", requireAdmin, (req, res) => {
-  res.json({ authenticated: true, databaseConfigured: Boolean(process.env.DATABASE_URL), actor: req.header("x-admin-email") || "owner" });
+  res.json({ authenticated: true, databaseConfigured: Boolean(process.env.DATABASE_URL), actor: "owner" });
 });
 
 router.get("/admin/overview", requireAdmin, async (_req, res): Promise<void> => {
