@@ -5,8 +5,8 @@
   "framework": "vite",
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/admin", "destination": "/index.html" },
-    { "source": "/admin/:path*", "destination": "/index.html" },
+    { "source": "/admin", "destination": "/" },
+    { "source": "/admin/:path*", "destination": "/" },
     { "source": "/menu", "destination": "/index.html" },
     { "source": "/order", "destination": "/index.html" },
     { "source": "/how-it-works", "destination": "/index.html" },
