@@ -2,6 +2,7 @@ import { randomUUID, timingSafeEqual } from "node:crypto";
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
+import { sendTransactionalEmail } from "../lib/email";
 
 type DbModule = typeof import("@workspace/db");
 
@@ -29,6 +30,7 @@ const orderBody = z.object({
   deliveryAddress: z.string().default(""),
   notes: z.string().default(""),
   paymentMethod: z.enum(paymentMethods).default("square"),
+  expectedSenderName: z.string().max(120).default(""),
   items: z.array(z.object({ mealId: z.string().min(1), quantity: z.number().int().positive() })).min(1),
 });
 const menuBody = z.object({
@@ -65,6 +67,15 @@ const settingsBody = z.object({
   standardPrice: z.coerce.number().nonnegative(),
   premiumCharge: z.coerce.number().nonnegative(),
   showDemoLabel: z.boolean().default(false),
+  cashAppHandle: z.string().default(""),
+  venmoHandle: z.string().default(""),
+  zelleContact: z.string().default(""),
+  cashAppQrPath: z.string().default(""),
+  venmoQrPath: z.string().default(""),
+  zelleQrPath: z.string().default(""),
+  cashAppEnabled: z.boolean().default(true),
+  venmoEnabled: z.boolean().default(true),
+  zelleEnabled: z.boolean().default(true),
 });
 
 async function loadDb(): Promise<DbModule> {
@@ -100,6 +111,17 @@ async function withDatabase(res: Response, work: (database: DbModule) => Promise
       error: "Persistent database is not configured or is temporarily unavailable",
       ...(process.env.NODE_ENV === "development" ? { detail: error instanceof Error ? error.message : String(error) } : {}),
     });
+  }
+}
+
+async function queueEmail(db: any, emailEventsTable: any, orderId: string, eventType: string, message: { to: string; subject: string; text: string }) {
+  const id = randomUUID();
+  await db.insert(emailEventsTable).values({ id, orderId, eventType, recipient: message.to, subject: message.subject, body: message.text, status: "queued" });
+  try {
+    const delivery = await sendTransactionalEmail(message);
+    await db.update(emailEventsTable).set({ status: delivery.delivered ? "delivered" : "preview", providerMode: delivery.mode, deliveredAt: delivery.delivered ? new Date() : null }).where(eq(emailEventsTable.id, id));
+  } catch (error) {
+    await db.update(emailEventsTable).set({ status: "failed", lastError: error instanceof Error ? error.message.slice(0, 500) : "Provider failure" }).where(eq(emailEventsTable.id, id));
   }
 }
 
@@ -153,11 +175,19 @@ router.patch("/admin/orders/:id/status", requireAdmin, async (req, res): Promise
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  await withDatabase(res, async ({ db, ordersTable }) => {
+  await withDatabase(res, async ({ db, ordersTable, emailEventsTable }) => {
     const [order] = await db.update(ordersTable).set({ status: parsed.data.status }).where(eq(ordersTable.id, singleParam(req.params.id))).returning();
     if (!order) {
       res.status(404).json({ error: "Order not found" });
       return;
+    }
+    if (["ready", "out_for_delivery", "completed"].includes(parsed.data.status)) {
+      const label = parsed.data.status === "ready" ? "ready for pickup" : parsed.data.status === "out_for_delivery" ? "out for delivery" : "completed";
+      await queueEmail(db, emailEventsTable, order.id, `fulfillment_${parsed.data.status}`, {
+        to: order.customerEmail,
+        subject: `Your 904 Meal Prepz order is ${label}`,
+        text: `Hi ${order.customerName},\n\nOrder ${order.orderNumber} is ${label}.\n${order.fulfillment === "delivery" ? `Delivery address: ${order.deliveryAddress}` : `Pickup window: ${order.pickupWindow}`}`,
+      });
     }
     res.json(order);
   });
@@ -169,7 +199,7 @@ router.patch("/admin/orders/:id/payment", requireAdmin, async (req, res): Promis
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  await withDatabase(res, async ({ db, ordersTable }) => {
+  await withDatabase(res, async ({ db, ordersTable, orderItemsTable, paymentConfirmationsTable, emailEventsTable }) => {
     const [existing] = await db.select().from(ordersTable).where(eq(ordersTable.id, singleParam(req.params.id))).limit(1);
     if (!existing) {
       res.status(404).json({ error: "Order not found" });
@@ -179,7 +209,24 @@ router.patch("/admin/orders/:id/payment", requireAdmin, async (req, res): Promis
       res.status(409).json({ error: "A refunded order cannot be marked paid" });
       return;
     }
-    const [order] = await db.update(ordersTable).set({ paymentStatus: parsed.data.status }).where(eq(ordersTable.id, existing.id)).returning();
+    if (existing.paymentMethod === "square") {
+      res.status(409).json({ error: "Square orders cannot be confirmed through the manual-payment flow" });
+      return;
+    }
+    if (existing.paymentStatus === "paid") {
+      res.json(existing);
+      return;
+    }
+    const actor = req.header("x-admin-email") || "owner";
+    const confirmedAt = new Date();
+    const [order] = await db.update(ordersTable).set({ paymentStatus: parsed.data.status, status: "confirmed", paymentConfirmedAt: confirmedAt, paymentConfirmedBy: actor }).where(eq(ordersTable.id, existing.id)).returning();
+    await db.update(paymentConfirmationsTable).set({ confirmedAt, confirmedBy: actor }).where(eq(paymentConfirmationsTable.orderId, existing.id));
+    const items = await db.select().from(orderItemsTable).where(eq(orderItemsTable.orderId, existing.id));
+    await queueEmail(db, emailEventsTable, existing.id, "payment_confirmed", {
+      to: existing.customerEmail,
+      subject: "Payment confirmed — your 904 Meal Prepz order is confirmed",
+      text: `Hi ${existing.customerName},\n\nPAID: $${Number(existing.total).toFixed(2)}\nORDER CONFIRMED: ${existing.orderNumber}\nPayment method: ${existing.paymentMethod}\n\n${items.map((item) => `${item.mealNameSnapshot} x ${item.quantity}`).join("\n")}\n\n${existing.fulfillment === "delivery" ? `Delivery: ${existing.deliveryAddress}` : `Pickup: ${existing.pickupWindow}`}`,
+    });
     res.json({ ...order, paymentMethod: existing.paymentMethod, paymentStatus: "paid" });
   });
 });
@@ -196,17 +243,23 @@ router.get("/admin/customers", requireAdmin, async (_req, res): Promise<void> =>
 });
 
 router.get("/admin/menus/current", requireAdmin, async (_req, res): Promise<void> => {
-  await withDatabase(res, async ({ db, weeklyMenusTable, mealsTable, deliveryZonesTable }) => {
+  await withDatabase(res, async ({ db, weeklyMenusTable, mealsTable, deliveryZonesTable, businessSettingsTable }) => {
     const [menu] = await db.select().from(weeklyMenusTable).orderBy(desc(weeklyMenusTable.orderDeadline)).limit(1);
     if (!menu) {
       res.status(404).json({ error: "No weekly menu found" });
       return;
     }
-    const [meals, deliveryZones] = await Promise.all([
+    const [meals, deliveryZones, settingsRows] = await Promise.all([
       db.select().from(mealsTable).where(eq(mealsTable.menuId, menu.id)).orderBy(mealsTable.mealNumber),
       db.select().from(deliveryZonesTable).where(eq(deliveryZonesTable.active, true)),
+      db.select().from(businessSettingsTable).where(eq(businessSettingsTable.id, "default")).limit(1),
     ]);
-    res.json({ ...menu, meals, deliveryZones });
+    const settings = settingsRows[0];
+    res.json({ ...menu, meals, deliveryZones, paymentOptions: settings ? {
+      cash_app: { enabled: settings.cashAppEnabled, handle: settings.cashAppHandle, qrPath: settings.cashAppQrPath },
+      venmo: { enabled: settings.venmoEnabled, handle: settings.venmoHandle, qrPath: settings.venmoQrPath },
+      zelle: { enabled: settings.zelleEnabled, handle: settings.zelleContact, qrPath: settings.zelleQrPath },
+    } : null });
   });
 });
 
@@ -449,17 +502,23 @@ router.put("/admin/settings", requireAdmin, async (req, res): Promise<void> => {
 });
 
 router.get("/menus/current", async (_req, res): Promise<void> => {
-  await withDatabase(res, async ({ db, weeklyMenusTable, mealsTable, deliveryZonesTable }) => {
+  await withDatabase(res, async ({ db, weeklyMenusTable, mealsTable, deliveryZonesTable, businessSettingsTable }) => {
     const [menu] = await db.select().from(weeklyMenusTable).where(eq(weeklyMenusTable.status, "published")).orderBy(desc(weeklyMenusTable.publishedAt)).limit(1);
     if (!menu) {
       res.status(404).json({ error: "No published weekly menu found" });
       return;
     }
-    const [meals, deliveryZones] = await Promise.all([
+    const [meals, deliveryZones, settingsRows] = await Promise.all([
       db.select().from(mealsTable).where(and(eq(mealsTable.menuId, menu.id), eq(mealsTable.available, true), eq(mealsTable.soldOut, false), eq(mealsTable.archived, false))).orderBy(mealsTable.mealNumber),
       db.select().from(deliveryZonesTable).where(eq(deliveryZonesTable.active, true)),
+      db.select().from(businessSettingsTable).where(eq(businessSettingsTable.id, "default")).limit(1),
     ]);
-    res.json({ ...menu, meals, deliveryZones });
+    const settings = settingsRows[0];
+    res.json({ ...menu, meals, deliveryZones, paymentOptions: settings ? {
+      cash_app: { enabled: settings.cashAppEnabled, handle: settings.cashAppHandle, qrPath: settings.cashAppQrPath },
+      venmo: { enabled: settings.venmoEnabled, handle: settings.venmoHandle, qrPath: settings.venmoQrPath },
+      zelle: { enabled: settings.zelleEnabled, handle: settings.zelleContact, qrPath: settings.zelleQrPath },
+    } : null });
   });
 });
 
@@ -486,7 +545,7 @@ router.post("/orders", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  await withDatabase(res, async ({ db, customersTable, mealsTable, weeklyMenusTable, ordersTable, orderItemsTable, deliveryZonesTable }) => {
+  await withDatabase(res, async ({ db, customersTable, mealsTable, weeklyMenusTable, ordersTable, orderItemsTable, deliveryZonesTable, paymentConfirmationsTable, adminNotificationsTable, emailEventsTable, businessSettingsTable }) => {
     const [menu] = await db.select().from(weeklyMenusTable).where(eq(weeklyMenusTable.id, parsed.data.menuId)).limit(1);
     if (!menu || menu.status !== "published" || menu.orderDeadline.getTime() <= Date.now()) {
       res.status(409).json({ error: "This weekly menu is not published or is closed" });
@@ -511,13 +570,30 @@ router.post("/orders", async (req, res): Promise<void> => {
       res.status(400).json({ error: "A valid delivery zone is required" });
       return;
     }
+    const [settings] = await db.select().from(businessSettingsTable).where(eq(businessSettingsTable.id, "default")).limit(1);
+    const configuredMethods = settings ? {
+      cash_app: { enabled: settings.cashAppEnabled, handle: settings.cashAppHandle },
+      venmo: { enabled: settings.venmoEnabled, handle: settings.venmoHandle },
+      zelle: { enabled: settings.zelleEnabled, handle: settings.zelleContact },
+    } : null;
+    const selectedConfig = parsed.data.paymentMethod in (configuredMethods || {}) ? configuredMethods?.[parsed.data.paymentMethod as keyof typeof configuredMethods] : undefined;
+    if (selectedConfig && (!selectedConfig.enabled || !selectedConfig.handle.trim())) {
+      res.status(409).json({ error: "That manual payment method is not currently available" });
+      return;
+    }
+    const configuredInstruction = selectedConfig ? `Send $AMOUNT to ${selectedConfig.handle}.` : paymentInstructions[parsed.data.paymentMethod];
     const customerId = `customer-${parsed.data.customer.email.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
     const [customer] = await db.insert(customersTable).values({ id: customerId, ...parsed.data.customer }).onConflictDoUpdate({ target: customersTable.email, set: { name: parsed.data.customer.name, phone: parsed.data.customer.phone, address: parsed.data.customer.address, updatedAt: new Date() } }).returning();
     const mealSubtotal = parsed.data.items.reduce((sum, item) => sum + Number(meals.find((meal) => meal.id === item.mealId)?.price || 0) * item.quantity, 0);
     const premiumCharges = parsed.data.items.reduce((sum, item) => sum + Number(meals.find((meal) => meal.id === item.mealId)?.premiumCharge || 0) * item.quantity, 0);
     const deliveryFee = Number(zone?.fee || 0);
      const orderTotal = mealSubtotal + premiumCharges + deliveryFee;
-     const [order] = await db.insert(ordersTable).values({ id: randomUUID(), orderNumber: `904-${Date.now().toString().slice(-6)}`, customerId: customer.id, customerName: parsed.data.customer.name, customerEmail: parsed.data.customer.email, customerPhone: parsed.data.customer.phone, menuId: menu.id, fulfillment: parsed.data.fulfillment, pickupWindow: parsed.data.pickupWindow, deliveryZone: parsed.data.deliveryZone, deliveryAddress: parsed.data.deliveryAddress, notes: parsed.data.notes, mealSubtotal: mealSubtotal.toFixed(2), premiumCharges: premiumCharges.toFixed(2), deliveryFee: deliveryFee.toFixed(2), total: orderTotal.toFixed(2), paymentMethod: parsed.data.paymentMethod, paymentStatus: "pending", status: "new" }).returning();
+     const manualPayment = parsed.data.paymentMethod !== "square";
+     if (manualPayment && !parsed.data.expectedSenderName.trim()) {
+       res.status(400).json({ error: "The payment sender name is required for manual payments" });
+       return;
+     }
+     const [order] = await db.insert(ordersTable).values({ id: randomUUID(), orderNumber: `904-${Date.now().toString().slice(-6)}`, customerId: customer.id, customerName: parsed.data.customer.name, customerEmail: parsed.data.customer.email, customerPhone: parsed.data.customer.phone, menuId: menu.id, fulfillment: parsed.data.fulfillment, pickupWindow: parsed.data.pickupWindow, deliveryZone: parsed.data.deliveryZone, deliveryAddress: parsed.data.deliveryAddress, notes: parsed.data.notes, mealSubtotal: mealSubtotal.toFixed(2), premiumCharges: premiumCharges.toFixed(2), deliveryFee: deliveryFee.toFixed(2), total: orderTotal.toFixed(2), paymentMethod: parsed.data.paymentMethod, paymentStatus: "pending", expectedSenderName: parsed.data.expectedSenderName.trim(), paymentSubmittedAt: manualPayment ? new Date() : null, status: manualPayment ? "awaiting_payment_confirmation" : "new" }).returning();
     await db.insert(orderItemsTable).values(parsed.data.items.map((item) => {
       const meal = meals.find((candidate) => candidate.id === item.mealId);
       if (!meal) throw new Error("Validated meal missing during order creation");
@@ -533,7 +609,13 @@ router.post("/orders", async (req, res): Promise<void> => {
         quantity: item.quantity,
       };
     }));
-     res.status(201).json({ order, payment: { method: parsed.data.paymentMethod, status: "pending", amountDue: orderTotal.toFixed(2), instructions: paymentInstructions[parsed.data.paymentMethod] }, checkout: { provider: parsed.data.paymentMethod === "square" ? "square" : null, status: parsed.data.paymentMethod === "square" ? "not_configured" : "manual_payment" } });
+     if (manualPayment) {
+       await db.insert(paymentConfirmationsTable).values({ id: randomUUID(), orderId: order.id, paymentMethod: parsed.data.paymentMethod, amount: orderTotal.toFixed(2), expectedSenderName: order.expectedSenderName, submittedAt: new Date() });
+       await db.insert(adminNotificationsTable).values({ id: randomUUID(), orderId: order.id, type: "payment_confirmation_needed", title: "New payment confirmation needed", message: `${order.customerName} submitted ${order.orderNumber} for $${orderTotal.toFixed(2)} using ${parsed.data.paymentMethod}.` });
+     }
+     const finalInstructions = configuredInstruction.replace("$AMOUNT", `$${orderTotal.toFixed(2)}`);
+     await queueEmail(db, emailEventsTable, order.id, "order_received", { to: order.customerEmail, subject: "We received your 904 Meal Prepz order", text: `Hi ${order.customerName},\n\nWe received ${order.orderNumber} for $${orderTotal.toFixed(2)}.\nPayment: ${manualPayment ? "Payment Pending" : "Payment processing"}\n${manualPayment ? `Expected sender: ${order.expectedSenderName}\n${finalInstructions}\nPlease include ${order.orderNumber} in your payment note when possible.` : ""}` });
+     res.status(201).json({ order, payment: { method: parsed.data.paymentMethod, status: "pending", amountDue: orderTotal.toFixed(2), instructions: finalInstructions, expectedSenderName: order.expectedSenderName }, checkout: { provider: parsed.data.paymentMethod === "square" ? "square" : null, status: parsed.data.paymentMethod === "square" ? "not_configured" : "manual_payment" } });
   });
 });
 

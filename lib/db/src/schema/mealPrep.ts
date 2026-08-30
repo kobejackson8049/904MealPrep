@@ -74,6 +74,10 @@ export const ordersTable = pgTable("meal_prep_orders", {
   total: numeric("total", { precision: 10, scale: 2 }).notNull(),
   paymentMethod: text("payment_method").notNull().default("square"),
   paymentStatus: text("payment_status").notNull().default("unpaid"),
+  expectedSenderName: text("expected_sender_name").notNull().default(""),
+  paymentSubmittedAt: timestamp("payment_submitted_at", { withTimezone: true }),
+  paymentConfirmedAt: timestamp("payment_confirmed_at", { withTimezone: true }),
+  paymentConfirmedBy: text("payment_confirmed_by").notNull().default(""),
   status: text("status").notNull().default("new"),
   squareCheckoutId: text("square_checkout_id"),
   ...timestamps,
@@ -111,6 +115,51 @@ export const businessSettingsTable = pgTable("meal_prep_business_settings", {
   standardPrice: numeric("standard_price", { precision: 10, scale: 2 }).notNull().default("8"),
   premiumCharge: numeric("premium_charge", { precision: 10, scale: 2 }).notNull().default("2"),
   showDemoLabel: boolean("show_demo_label").notNull().default(false),
+  cashAppHandle: text("cash_app_handle").notNull().default(""),
+  venmoHandle: text("venmo_handle").notNull().default(""),
+  zelleContact: text("zelle_contact").notNull().default(""),
+  cashAppQrPath: text("cash_app_qr_path").notNull().default(""),
+  venmoQrPath: text("venmo_qr_path").notNull().default(""),
+  zelleQrPath: text("zelle_qr_path").notNull().default(""),
+  cashAppEnabled: boolean("cash_app_enabled").notNull().default(true),
+  venmoEnabled: boolean("venmo_enabled").notNull().default(true),
+  zelleEnabled: boolean("zelle_enabled").notNull().default(true),
+  ...timestamps,
+});
+
+export const paymentConfirmationsTable = pgTable("meal_prep_payment_confirmations", {
+  id: text("id").primaryKey(),
+  orderId: text("order_id").notNull().references(() => ordersTable.id, { onDelete: "cascade" }),
+  paymentMethod: text("payment_method").notNull(),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  expectedSenderName: text("expected_sender_name").notNull().default(""),
+  submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull(),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  confirmedBy: text("confirmed_by").notNull().default(""),
+  ...timestamps,
+});
+
+export const adminNotificationsTable = pgTable("meal_prep_admin_notifications", {
+  id: text("id").primaryKey(),
+  orderId: text("order_id").references(() => ordersTable.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  readAt: timestamp("read_at", { withTimezone: true }),
+  ...timestamps,
+});
+
+export const emailEventsTable = pgTable("meal_prep_email_events", {
+  id: text("id").primaryKey(),
+  orderId: text("order_id").references(() => ordersTable.id, { onDelete: "cascade" }),
+  eventType: text("event_type").notNull(),
+  recipient: text("recipient").notNull(),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  status: text("status").notNull().default("queued"),
+  providerMode: text("provider_mode").notNull().default("demo"),
+  deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+  lastError: text("last_error").notNull().default(""),
   ...timestamps,
 });
 
@@ -122,6 +171,9 @@ export const insertOrderSchema = createInsertSchema(ordersTable).omit({ createdA
 export const insertOrderItemSchema = createInsertSchema(orderItemsTable).omit({ createdAt: true, updatedAt: true });
 export const insertDeliveryZoneSchema = createInsertSchema(deliveryZonesTable).omit({ createdAt: true, updatedAt: true });
 export const insertBusinessSettingsSchema = createInsertSchema(businessSettingsTable).omit({ createdAt: true, updatedAt: true });
+export const insertPaymentConfirmationSchema = createInsertSchema(paymentConfirmationsTable).omit({ createdAt: true, updatedAt: true });
+export const insertAdminNotificationSchema = createInsertSchema(adminNotificationsTable).omit({ createdAt: true, updatedAt: true });
+export const insertEmailEventSchema = createInsertSchema(emailEventsTable).omit({ createdAt: true, updatedAt: true });
 
 export type AdminUser = typeof adminUsersTable.$inferSelect;
 export type Customer = typeof customersTable.$inferSelect;
@@ -131,4 +183,7 @@ export type Order = typeof ordersTable.$inferSelect;
 export type OrderItem = typeof orderItemsTable.$inferSelect;
 export type DeliveryZone = typeof deliveryZonesTable.$inferSelect;
 export type BusinessSettings = typeof businessSettingsTable.$inferSelect;
+export type PaymentConfirmation = typeof paymentConfirmationsTable.$inferSelect;
+export type AdminNotification = typeof adminNotificationsTable.$inferSelect;
+export type EmailEvent = typeof emailEventsTable.$inferSelect;
 export type CreateOrder = z.infer<typeof insertOrderSchema>;

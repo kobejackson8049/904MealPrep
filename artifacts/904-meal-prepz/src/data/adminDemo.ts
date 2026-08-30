@@ -34,6 +34,10 @@ export type AdminOrder = {
   deliveryCharge: number;
   total: number;
   paymentMethod: PaymentMethod;
+  expectedSenderName?: string;
+  paymentSubmittedAt?: string;
+  paymentConfirmedAt?: string;
+  paymentConfirmedBy?: string;
   fulfillment: FulfillmentType;
   window: string;
   payment: PaymentStatus;
