@@ -25,9 +25,9 @@ type Settings = {
   announcement: string;
   pricing: Pricing;
   showDemoLabel: boolean;
-  cashAppHandle: string; venmoHandle: string; zelleContact: string;
-  cashAppEnabled: boolean; venmoEnabled: boolean; zelleEnabled: boolean;
-  cashAppQrPath: string; venmoQrPath: string; zelleQrPath: string;
+  cashAppHandle: string; applePayHandle: string; venmoHandle: string; zelleContact: string;
+  cashAppEnabled: boolean; applePayEnabled: boolean; venmoEnabled: boolean; zelleEnabled: boolean;
+  applePayQrPath: string; cashAppQrPath: string; venmoQrPath: string; zelleQrPath: string;
 };
 
 const tabs: Array<{ id: AdminTab; route: string; icon: typeof LayoutDashboard }> = [
@@ -45,7 +45,7 @@ const tabs: Array<{ id: AdminTab; route: string; icon: typeof LayoutDashboard }>
 ];
 const statuses: AdminOrderStatus[] = ['New', 'Confirmed', 'Preparing', 'Ready', 'Out for Delivery', 'Completed', 'Cancelled'];
 const statusNext: Partial<Record<AdminOrderStatus, AdminOrderStatus>> = { New: 'Confirmed', Confirmed: 'Preparing', Preparing: 'Ready', Ready: 'Out for Delivery', 'Out for Delivery': 'Completed' };
-const paymentMethods: PaymentMethod[] = ['Square / Apple Pay', 'Cash App', 'Venmo', 'Zelle', 'Other manual'];
+const paymentMethods: PaymentMethod[] = ['Square', 'Apple Pay', 'Cash App', 'Venmo', 'Zelle', 'Other manual'];
 const categories: MenuCategory[] = ['Breakfast', 'Entrées', 'Healthier Entrées', 'Premium Meals'];
 const defaultSettings: Settings = {
   businessName: '904 Meal Prepz',
@@ -56,9 +56,9 @@ const defaultSettings: Settings = {
   announcement: 'Preorder by Saturday at noon for Sunday pickup or local delivery.',
   pricing: { standardPrice: 8, premiumCharge: 2 },
   showDemoLabel: true,
-  cashAppHandle: '', venmoHandle: '', zelleContact: '',
-  cashAppEnabled: true, venmoEnabled: true, zelleEnabled: true,
-  cashAppQrPath: '', venmoQrPath: '', zelleQrPath: '',
+  cashAppHandle: '$sneakfeen', applePayHandle: '', venmoHandle: '', zelleContact: '',
+  cashAppEnabled: true, applePayEnabled: true, venmoEnabled: true, zelleEnabled: true,
+  applePayQrPath: '', cashAppQrPath: '', venmoQrPath: '', zelleQrPath: '',
 };
 
 function tabForRoute(path: string): AdminTab {
@@ -103,7 +103,7 @@ function normalizeApiOrder(raw: Record<string, any>): AdminOrder {
     premiumCharge: Number(item.premiumChargeSnapshot),
   }));
   const paymentMap: Record<string, PaymentStatus> = { paid: 'Paid', pending: 'Payment Pending', unpaid: 'Unpaid', refunded: 'Refunded' };
-  const methodMap: Record<string, PaymentMethod> = { square: 'Square / Apple Pay', cash_app: 'Cash App', venmo: 'Venmo', zelle: 'Zelle', other_manual: 'Other manual' };
+  const methodMap: Record<string, PaymentMethod> = { square: 'Square', apple_pay: 'Apple Pay', cash_app: 'Cash App', venmo: 'Venmo', zelle: 'Zelle', other_manual: 'Other manual' };
   return {
     id: raw.id, orderNumber: raw.orderNumber, customerId: raw.customerId, customer: raw.customerName, phone: raw.customerPhone, email: raw.customerEmail,
     address: raw.deliveryAddress || '', deliveryZone: raw.deliveryZone || '', notes: raw.notes || '', items,
@@ -445,14 +445,14 @@ function FulfillmentList({ orders, type, onStatusChange }: { orders: AdminOrder[
 
 function Payments({ orders, onMarkPaid }: { orders: AdminOrder[]; onMarkPaid: (id: string) => void }) {
   const paid = orders.filter((order) => order.payment === 'Paid');
-  const pending = orders.filter((order) => order.paymentMethod !== 'Square / Apple Pay' && (order.payment === 'Payment Pending' || order.payment === 'Unpaid'));
+  const pending = orders.filter((order) => !['Square', 'Square / Apple Pay'].includes(order.paymentMethod) && (order.payment === 'Payment Pending' || order.payment === 'Unpaid'));
   return <div className="space-y-6"><div className="grid gap-3 sm:grid-cols-3"><Metric label="Paid revenue" value={money(paid.reduce((sum, order) => sum + order.total, 0))} detail="Confirmed payments only" /><Metric label="Manual confirmations" value={String(pending.length)} detail="Square excluded" /><Metric label="Amount pending" value={money(pending.reduce((sum, order) => sum + order.total, 0))} detail="Not included in revenue" /></div><Panel title="Manual payment queue" eyebrow="Match sender before confirming"><div className="space-y-3">{pending.map((order) => <div key={order.id} className="grid gap-3 border border-[#173c3a]/10 bg-white p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-center"><div><strong>{order.orderNumber}</strong><p className="text-xs text-[#738681]">{order.customer} / {order.email}</p></div><div><p className="font-bold">{order.paymentMethod} / {money(order.total)}</p><p className="text-xs text-[#738681]">Expected sender: {order.expectedSenderName || 'Not provided'}</p><p className="text-xs text-[#738681]">Submitted: {order.paymentSubmittedAt ? new Date(order.paymentSubmittedAt).toLocaleString() : order.date}</p></div><button type="button" onClick={() => onMarkPaid(order.id)} className="bg-[#173c3a] px-4 py-3 text-[10px] font-bold uppercase tracking-[.1em] text-white" data-testid={`button-payment-mark-paid-${order.id}`}>Confirm receipt</button></div>)}</div>{!pending.length && <EmptyState title="Payment queue is clear" copy="No manual transfers are awaiting confirmation." />}</Panel></div>;
 }
 
 function SettingsPage({ settings, onSave }: { settings: Settings; onSave: (settings: Settings) => void }) {
   const [draft, setDraft] = useState(settings);
   const inputClass = "mt-2 block w-full border border-[#173c3a]/15 bg-white px-3 py-3 text-sm font-normal normal-case tracking-normal outline-none focus:border-[#27625a]";
-  const paymentFields = [['Cash App', 'cashAppHandle', 'cashAppEnabled', 'cashAppQrPath'], ['Venmo', 'venmoHandle', 'venmoEnabled', 'venmoQrPath'], ['Zelle', 'zelleContact', 'zelleEnabled', 'zelleQrPath']] as const;
+  const paymentFields = [['Apple Pay', 'applePayHandle', 'applePayEnabled', 'applePayQrPath'], ['Cash App', 'cashAppHandle', 'cashAppEnabled', 'cashAppQrPath'], ['Venmo', 'venmoHandle', 'venmoEnabled', 'venmoQrPath'], ['Zelle', 'zelleContact', 'zelleEnabled', 'zelleQrPath']] as const;
   return <Panel title="Business settings" eyebrow="Owner configuration">
     <div className="mb-6 border border-[#e7d58d] bg-[#fff9df] p-4 text-sm text-[#7b6414]"><Settings2 size={17} className="mb-2" /><strong>Provider credentials stay server-side.</strong><p className="mt-1 text-xs">Configure public payment handles here; QR fields store persistent object paths, never image bytes.</p></div>
     <div className="grid gap-4 sm:grid-cols-2">{([['Business name', 'businessName'], ['Phone', 'phone'], ['Email', 'email'], ['Instagram', 'instagram'], ['Pickup information', 'pickupInformation']] as const).map(([label, key]) => <label key={key} className="text-xs font-bold uppercase tracking-[.12em]">{label}<input value={draft[key]} onChange={(event) => setDraft({ ...draft, [key]: event.target.value })} className={inputClass} /></label>)}</div>
@@ -511,7 +511,7 @@ function MealEditor({ meal, pricing, onClose, onSave }: { meal: AdminMenuMeal | 
 }
 
 function OrderDetail({ order, onClose, onStatusChange, onMarkPaid }: { order: AdminOrder; onClose: () => void; onStatusChange: (id: string, status: AdminOrderStatus) => void; onMarkPaid: (id: string) => void }) {
-  const manualPayment = order.paymentMethod !== 'Square / Apple Pay';
+  const manualPayment = !['Square', 'Square / Apple Pay'].includes(order.paymentMethod);
   return <div className="fixed inset-0 z-50 grid place-items-center bg-[#102d2b]/65 p-4"><div className="max-h-[90dvh] w-full max-w-[700px] overflow-y-auto bg-[#f3f5f2] shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="order-detail-heading" data-testid="order-detail"><div className="flex items-start justify-between border-b border-[#173c3a]/10 bg-white px-5 py-5 sm:px-7"><div><p className="text-[10px] font-bold uppercase tracking-[.15em] text-[#b28b17]">Order detail</p><h2 id="order-detail-heading" className="mt-1 text-2xl font-extrabold">{order.orderNumber}</h2><p className="mt-1 text-xs text-[#738681]">{order.date}</p></div><button type="button" onClick={onClose} aria-label="Close order detail" data-testid="button-close-order-detail"><X size={20} /></button></div><div className="space-y-5 p-5 sm:p-7"><div className="grid gap-4 sm:grid-cols-2"><Info label="Customer" value={order.customer} /><Info label="Phone / email" value={`${order.phone} / ${order.email}`} /><Info label="Fulfillment" value={`${order.fulfillment} / ${order.window}`} /><Info label="Address / zone" value={`${order.address}${order.deliveryZone ? ` / ${order.deliveryZone}` : ''}`} /><Info label="Payment method" value={order.paymentMethod} /><Info label="Payment status" value={order.payment} /></div>{manualPayment && order.payment !== 'Paid' && order.payment !== 'Refunded' && <div className="border border-[#e7d58d] bg-[#fff9df] p-4 text-sm text-[#7b6414]"><p className="font-bold">Payment pending — collect {money(order.total)}</p><p className="mt-2 text-xs leading-5">Confirm the transfer here only after the funds are visible in the payment account.</p><button type="button" onClick={() => onMarkPaid(order.id)} className="mt-4 bg-[#173c3a] px-4 py-3 text-xs font-bold uppercase tracking-[.12em] text-white hover:bg-[#27625a]" data-testid="button-detail-mark-paid">Mark paid</button></div>}<div className="border border-[#173c3a]/10 bg-white p-5"><p className="text-xs font-bold uppercase tracking-[.12em] text-[#738681]">Meals ordered / historical snapshots</p><div className="mt-3 space-y-2 text-sm">{order.items.map((item) => <div key={item.id} className="flex justify-between gap-3"><span>{item.mealName} × {item.quantity}</span><strong>{money((item.unitPrice + item.premiumCharge) * item.quantity)}</strong></div>)}</div>{order.notes && <p className="mt-4 border-t border-[#173c3a]/10 pt-4 text-xs text-[#738681]">Note: {order.notes}</p>}</div><div className="grid gap-3 border border-[#173c3a]/10 bg-white p-5 text-sm"><div className="flex justify-between"><span>Meal subtotal</span><strong>{money(order.mealSubtotal)}</strong></div><div className="flex justify-between"><span>Premium charges</span><strong>{money(order.premiumCharges)}</strong></div><div className="flex justify-between"><span>Delivery charge</span><strong>{money(order.deliveryCharge)}</strong></div><div className="flex justify-between border-t border-[#173c3a]/10 pt-3 text-lg"><span>Final total</span><strong>{money(order.total)}</strong></div></div><div className="flex flex-col justify-between gap-3 border-t border-[#173c3a]/10 pt-5 sm:flex-row sm:items-center"><label className="text-xs font-bold uppercase tracking-[.1em]">Order status<select value={order.status} onChange={(event) => onStatusChange(order.id, event.target.value as AdminOrderStatus)} className="ml-3 border border-[#173c3a]/15 bg-transparent px-3 py-2 text-sm font-semibold normal-case tracking-normal" data-testid="select-order-detail-status">{statuses.map((status) => <option key={status}>{status}</option>)}</select></label><button type="button" onClick={onClose} className="bg-[#173c3a] px-4 py-3 text-xs font-bold uppercase tracking-[.12em] text-white">Done</button></div></div></div></div>;
 }
 

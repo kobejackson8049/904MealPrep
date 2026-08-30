@@ -8,9 +8,10 @@ type DbModule = typeof import("@workspace/db");
 
 const router: IRouter = Router();
 const orderStatuses = ["new", "confirmed", "preparing", "ready", "out_for_delivery", "completed", "cancelled"] as const;
-const paymentMethods = ["square", "cash_app", "venmo", "zelle", "other_manual"] as const;
+const paymentMethods = ["square", "apple_pay", "cash_app", "venmo", "zelle", "other_manual"] as const;
 const paymentInstructions: Record<(typeof paymentMethods)[number], string> = {
-  square: "Square hosted checkout / Apple Pay",
+  square: "Square hosted checkout",
+  apple_pay: process.env.PAYMENT_APPLE_PAY_INSTRUCTIONS || "Apple Pay instructions will be provided by the owner.",
   cash_app: process.env.PAYMENT_CASH_APP_INSTRUCTIONS || "Cash App instructions will be provided by the owner.",
   venmo: process.env.PAYMENT_VENMO_INSTRUCTIONS || "Venmo instructions will be provided by the owner.",
   zelle: process.env.PAYMENT_ZELLE_INSTRUCTIONS || "Zelle instructions will be provided by the owner.",
@@ -68,12 +69,15 @@ const settingsBody = z.object({
   premiumCharge: z.coerce.number().nonnegative(),
   showDemoLabel: z.boolean().default(false),
   cashAppHandle: z.string().default(""),
+  applePayHandle: z.string().default(""),
+  applePayQrPath: z.string().default(""),
   venmoHandle: z.string().default(""),
   zelleContact: z.string().default(""),
   cashAppQrPath: z.string().default(""),
   venmoQrPath: z.string().default(""),
   zelleQrPath: z.string().default(""),
   cashAppEnabled: z.boolean().default(true),
+  applePayEnabled: z.boolean().default(true),
   venmoEnabled: z.boolean().default(true),
   zelleEnabled: z.boolean().default(true),
 });
@@ -285,7 +289,8 @@ router.get("/admin/menus/current", requireAdmin, async (_req, res): Promise<void
     ]);
     const settings = settingsRows[0];
     res.json({ ...menu, meals, deliveryZones, paymentOptions: settings ? {
-      cash_app: { enabled: settings.cashAppEnabled, handle: settings.cashAppHandle, qrPath: settings.cashAppQrPath },
+      apple_pay: { enabled: settings.applePayEnabled, handle: settings.applePayHandle || settings.cashAppHandle || "$sneakfeen", qrPath: settings.applePayQrPath },
+      cash_app: { enabled: settings.cashAppEnabled, handle: settings.cashAppHandle || "$sneakfeen", qrPath: settings.cashAppQrPath },
       venmo: { enabled: settings.venmoEnabled, handle: settings.venmoHandle, qrPath: settings.venmoQrPath },
       zelle: { enabled: settings.zelleEnabled, handle: settings.zelleContact, qrPath: settings.zelleQrPath },
     } : null });
@@ -656,7 +661,8 @@ router.post("/orders", async (req, res): Promise<void> => {
     }
     const [settings] = await db.select().from(businessSettingsTable).where(eq(businessSettingsTable.id, "default")).limit(1);
     const configuredMethods = settings ? {
-      cash_app: { enabled: settings.cashAppEnabled, handle: settings.cashAppHandle },
+      apple_pay: { enabled: settings.applePayEnabled, handle: settings.applePayHandle || settings.cashAppHandle || "$sneakfeen" },
+      cash_app: { enabled: settings.cashAppEnabled, handle: settings.cashAppHandle || "$sneakfeen" },
       venmo: { enabled: settings.venmoEnabled, handle: settings.venmoHandle },
       zelle: { enabled: settings.zelleEnabled, handle: settings.zelleContact },
     } : null;

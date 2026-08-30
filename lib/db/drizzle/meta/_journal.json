@@ -15,6 +15,13 @@
       "when": 1788096841632,
       "tag": "0001_nebulous_the_executioner",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788097593707,
+      "tag": "0002_old_microchip",
+      "breakpoints": true
     }
   ]
 }

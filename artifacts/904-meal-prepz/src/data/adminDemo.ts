@@ -2,7 +2,7 @@ import { weeklyMenu, type WeeklyMeal } from './weeklyMenu';
 
 export type AdminOrderStatus = 'New' | 'Confirmed' | 'Preparing' | 'Ready' | 'Out for Delivery' | 'Completed' | 'Cancelled';
 export type PaymentStatus = 'Paid' | 'Payment Pending' | 'Unpaid' | 'Refunded';
-export type PaymentMethod = 'Square / Apple Pay' | 'Cash App' | 'Venmo' | 'Zelle' | 'Other manual';
+export type PaymentMethod = 'Square' | 'Apple Pay' | 'Square / Apple Pay' | 'Cash App' | 'Venmo' | 'Zelle' | 'Other manual';
 export type FulfillmentType = 'Pickup' | 'Delivery';
 
 export type AdminOrderItem = {
@@ -113,7 +113,7 @@ export const demoOrders: AdminOrder[] = [
     notes: 'Please have this ready at the start of the pickup window.',
     items: [item('teriyaki-chicken-bowl', 2, '1048-4'), item('jerk-chicken', 2, '1048-5'), item('smoky-salmon-bowl', 1, '1048-10')],
     deliveryCharge: 0,
-    paymentMethod: 'Square / Apple Pay',
+    paymentMethod: 'Square',
     fulfillment: 'Pickup',
     window: 'Sunday / 10:00 AM–12:00 PM',
     payment: 'Paid',
@@ -189,7 +189,7 @@ export const demoOrders: AdminOrder[] = [
     notes: 'Call when you are on the way.',
     items: [item('jerk-chicken', 3, '1044-5'), item('smoky-salmon-bowl', 2, '1044-10')],
     deliveryCharge: 9,
-    paymentMethod: 'Square / Apple Pay',
+    paymentMethod: 'Square',
     fulfillment: 'Delivery',
     window: 'Monday / 4:00 PM–6:00 PM',
     payment: 'Paid',
@@ -208,7 +208,7 @@ export const demoOrders: AdminOrder[] = [
     notes: '',
     items: [item('three-egg-breakfast', 2, '1043-1'), item('teriyaki-chicken-bowl', 2, '1043-4')],
     deliveryCharge: 0,
-    paymentMethod: 'Square / Apple Pay',
+    paymentMethod: 'Square',
     fulfillment: 'Pickup',
     window: 'Sunday / 10:00 AM–12:00 PM',
     payment: 'Paid',
