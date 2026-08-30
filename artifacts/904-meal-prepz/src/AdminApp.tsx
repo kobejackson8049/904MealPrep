@@ -249,10 +249,15 @@ export default function AdminApp() {
 
   if (!authenticated) return <AdminAuthGate previewAllowed={previewAllowed} onPreview={() => { sessionStorage.setItem('904-admin-preview', '1'); setAuthenticated(true); }} onAuthenticate={async (password) => {
     const response = await fetch(`${apiBase()}/admin/login`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) });
-    if (!response.ok) return false;
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (response.status === 401) return { ok: false, error: 'Incorrect password.' };
+      if (response.status === 503) return { ok: false, error: 'Owner login is temporarily unavailable while the secure database connection is restored.' };
+      return { ok: false, error: payload.error || 'Owner login could not be completed. Please try again.' };
+    }
     setApiSession(true);
     setAuthenticated(true);
-    return true;
+    return { ok: true };
   }} />;
 
   function notify(message: string) {
@@ -390,13 +395,14 @@ export default function AdminApp() {
   );
 }
 
-function AdminAuthGate({ previewAllowed, onPreview, onAuthenticate }: { previewAllowed: boolean; onPreview: () => void; onAuthenticate: (password: string) => Promise<boolean> }) {
+function AdminAuthGate({ previewAllowed, onPreview, onAuthenticate }: { previewAllowed: boolean; onPreview: () => void; onAuthenticate: (password: string) => Promise<{ ok: boolean; error?: string }> }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError('');
-    if (!await onAuthenticate(password)) setError('Incorrect password.');
+    const result = await onAuthenticate(password);
+    if (!result.ok) setError(result.error || 'Owner login could not be completed. Please try again.');
   }
   return <div className="grid min-h-[100dvh] place-items-center bg-[#073d45] p-5 text-[#f7f4eb]"><div className="w-full max-w-[430px] border border-[#f7f4eb]/15 bg-[#0b6470] p-7 shadow-2xl sm:p-10"><a href="/" className="flex items-center gap-3" data-testid="link-admin-return"><span className="h-16 w-12 overflow-hidden rounded-sm border border-[#efb22d]/60 bg-[#f7f4eb]"><img src="/images/brand/904-meal-prepz-logo.jpeg" alt="904 Meal Prepz logo" className="h-full w-full object-cover object-top" /></span><span className="text-sm font-extrabold leading-tight">904<br /><span className="text-[9px] tracking-[.2em]">MEAL PREPZ OPS</span></span></a><p className="mt-12 text-[10px] font-bold uppercase tracking-[.18em] text-[#efb22d]">Private owner area</p><h1 className="mt-3 text-4xl font-extrabold tracking-[-.05em]">Welcome back.</h1><p className="mt-4 text-sm leading-6 text-[#f7f4eb]/65">Enter your owner password. Your authenticated session is kept in a secure HttpOnly cookie and the password is never stored in this browser.</p><form onSubmit={submit} className="mt-7"><label className="text-[10px] font-bold uppercase tracking-[.14em]">Password<input type="password" required value={password} onChange={(event) => setPassword(event.target.value)} className="mt-2 block w-full border border-[#f7f4eb]/25 bg-[#073d45] px-3 py-3 text-sm text-white outline-none focus:border-[#efb22d]" autoComplete="current-password" /></label>{error && <p className="mt-2 text-xs text-[#ffd0c5]">{error}</p>}<button type="submit" className="mt-4 flex w-full items-center justify-center gap-2 bg-[#efb22d] px-5 py-4 text-xs font-extrabold uppercase tracking-[.14em] text-[#073d45]">Sign in securely <ArrowRightIcon /></button></form>{previewAllowed && <button type="button" onClick={onPreview} className="mt-3 w-full border border-[#f7f4eb]/25 px-5 py-3 text-xs font-extrabold uppercase tracking-[.12em]" data-testid="button-admin-preview">Open seeded preview</button>}<p className="mt-8 flex items-center gap-2 text-xs text-[#f7f4eb]/45"><ShieldCheck size={15} /> Secure access boundary / owner only</p></div></div>;
 }
