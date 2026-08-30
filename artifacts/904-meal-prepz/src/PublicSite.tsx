@@ -167,7 +167,7 @@ function OrderSummary({ items, totalMeals, mealSubtotal, premiumCharges, deliver
 function OrderPage({ orderingOpen, countdown }: { orderingOpen: boolean; countdown: Countdown }) {
   const [selections, setSelections] = useState<Selection>(() => { try { return JSON.parse(localStorage.getItem('904-week') || '{}'); } catch { return {}; } });
   const [category, setCategory] = useState<'All' | MenuCategory>('All');
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(() => new URLSearchParams(window.location.search).get('preview') === 'payment' ? 4 : 1);
   const [draft, setDraft] = useState<OrderDraft>(emptyDraft);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -183,6 +183,9 @@ function OrderPage({ orderingOpen, countdown }: { orderingOpen: boolean; countdo
   function updateQuantity(meal: WeeklyMeal, amount: number) { if (!orderingOpen) return; setSelections((current) => { const next = { ...current, [meal.id]: Math.max(0, (current[meal.id] || 0) + amount) }; if (!next[meal.id]) delete next[meal.id]; return next; }); }
   function updateDraft(changes: Partial<OrderDraft>) { setDraft((current) => ({ ...current, ...changes })); }
   function previewPaymentMethods() {
+    const url = new URL(window.location.href);
+    url.searchParams.set('preview', 'payment');
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
     setStep(4);
     window.setTimeout(() => document.getElementById('checkout-heading')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
   }
