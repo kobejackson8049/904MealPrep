@@ -316,7 +316,16 @@ router.post("/admin/menus", requireAdmin, async (req, res): Promise<void> => {
     return;
   }
   await withDatabase(res, async ({ db, weeklyMenusTable }) => {
-    const [menu] = await db.insert(weeklyMenusTable).values({ ...parsed.data, id: parsed.data.id || randomUUID(), publishedAt: null }).returning();
+    const [menu] = await db.insert(weeklyMenusTable).values({
+      id: parsed.data.id || randomUUID(),
+      weekLabel: parsed.data.weekLabel!,
+      orderDeadline: parsed.data.orderDeadline!,
+      deadlineLabel: parsed.data.deadlineLabel!,
+      announcement: parsed.data.announcement ?? "",
+      pickupWindows: parsed.data.pickupWindows!,
+      status: parsed.data.status ?? "draft",
+      publishedAt: null,
+    }).returning();
     res.status(201).json(menu);
   });
 });
@@ -436,10 +445,19 @@ router.post("/admin/meals", requireAdmin, async (req, res): Promise<void> => {
       return;
     }
     const [meal] = await db.insert(mealsTable).values({
-      ...parsed.data,
       id: parsed.data.id || randomUUID(),
-      price: parsed.data.price.toFixed(2),
-      premiumCharge: parsed.data.premiumCharge.toFixed(2),
+      menuId: parsed.data.menuId!,
+      mealNumber: parsed.data.mealNumber!,
+      name: parsed.data.name!,
+      description: parsed.data.description ?? "",
+      category: parsed.data.category!,
+      price: parsed.data.price!.toFixed(2),
+      premiumCharge: (parsed.data.premiumCharge ?? 0).toFixed(2),
+      calories: parsed.data.calories!,
+      protein: parsed.data.protein!,
+      carbs: parsed.data.carbs!,
+      image: parsed.data.image ?? "",
+      available: parsed.data.available ?? true,
     }).returning();
     res.status(201).json(meal);
   });
@@ -590,7 +608,19 @@ router.post("/admin/gallery", requireAdmin, async (req, res): Promise<void> => {
   const parsed = galleryBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   await withDatabase(res, async ({ db, galleryMediaTable }) => {
-    const [row] = await db.insert(galleryMediaTable).values({ id: randomUUID(), ...parsed.data }).returning();
+    const [row] = await db.insert(galleryMediaTable).values({
+      id: randomUUID(),
+      title: parsed.data.title!,
+      description: parsed.data.description ?? "",
+      mediaType: parsed.data.mediaType!,
+      mediaPath: parsed.data.mediaPath!,
+      posterPath: parsed.data.posterPath ?? "",
+      linkedMealId: parsed.data.linkedMealId ?? null,
+      category: parsed.data.category ?? "",
+      status: parsed.data.status ?? "draft",
+      displayOrder: parsed.data.displayOrder ?? 0,
+      featured: parsed.data.featured ?? false,
+    }).returning();
     res.status(201).json(row);
   });
 });
@@ -673,7 +703,13 @@ router.post("/orders", async (req, res): Promise<void> => {
     }
     const configuredInstruction = selectedConfig ? `Send $AMOUNT to ${selectedConfig.handle}.` : paymentInstructions[parsed.data.paymentMethod];
     const customerId = `customer-${parsed.data.customer.email.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
-    const [customer] = await db.insert(customersTable).values({ id: customerId, ...parsed.data.customer }).onConflictDoUpdate({ target: customersTable.email, set: { name: parsed.data.customer.name, phone: parsed.data.customer.phone, address: parsed.data.customer.address, updatedAt: new Date() } }).returning();
+    const [customer] = await db.insert(customersTable).values({
+      id: customerId,
+      name: parsed.data.customer.name!,
+      email: parsed.data.customer.email!,
+      phone: parsed.data.customer.phone!,
+      address: parsed.data.customer.address ?? "",
+    }).onConflictDoUpdate({ target: customersTable.email, set: { name: parsed.data.customer.name, phone: parsed.data.customer.phone, address: parsed.data.customer.address, updatedAt: new Date() } }).returning();
     const mealSubtotal = parsed.data.items.reduce((sum, item) => sum + Number(meals.find((meal) => meal.id === item.mealId)?.price || 0) * item.quantity, 0);
     const premiumCharges = parsed.data.items.reduce((sum, item) => sum + Number(meals.find((meal) => meal.id === item.mealId)?.premiumCharge || 0) * item.quantity, 0);
     const deliveryFee = Number(zone?.fee || 0);
