@@ -25,23 +25,29 @@ Premium, mobile-first single-page storefront for a Jacksonville meal-prep busine
 
 ## Where things live
 
-- `artifacts/904-meal-prepz/src/App.tsx` — page sections, quantity builder, weekly summary, and five-step order flow
+- `artifacts/904-meal-prepz/src/App.tsx` — route boundary between the public site and protected admin workspace
+- `artifacts/904-meal-prepz/src/PublicSite.tsx` — multi-page storefront, quantity builder, weekly summary, six-step order flow, SEO metadata, and portable order submission
+- `artifacts/904-meal-prepz/src/AdminApp.tsx` — owner-only operations workspace with seeded development preview
+- `artifacts/904-meal-prepz/src/data/adminDemo.ts` — clearly labeled dashboard preview records and analytics
 - `artifacts/904-meal-prepz/src/data/weeklyMenu.ts` — editable weekly menu, deadline, pickup windows, and delivery zones
 - `artifacts/904-meal-prepz/public/images/meals/` — local meal photography
 - `artifacts/904-meal-prepz/public/images/brand/` — local editorial/brand photography
 - `artifacts/904-meal-prepz/public/videos/` — local browser-ready kitchen and meal footage
-- `artifacts/904-meal-prepz/README.md` — local run, Vercel handoff, content editing, and payment integration notes
+- `artifacts/904-meal-prepz/README.md` — local run, Vercel handoff, admin setup, content editing, and payment integration notes
+- `artifacts/api-server/src/routes/admin.ts` — token-protected admin routes and public order persistence boundary
+- `lib/db/src/schema/mealPrep.ts` — PostgreSQL-compatible menu, meal, customer, order, fulfillment, payment, and admin tables
 
 ## Architecture decisions
 
-- Frontend-only weekly preorder demo with React state and `localStorage` selection persistence for easy GitHub/Vercel transfer.
+- Portable weekly preorder frontend with React state and `localStorage` selection persistence for the no-backend demo; when `VITE_API_BASE_URL` is configured, order creation moves to the server boundary.
 - Menu content is local TypeScript data so the first handoff does not depend on a product API.
-- Checkout is explicitly demo-only; future payment providers should be connected server-side.
+- Checkout presents Square / Apple Pay as the preferred method but carries Cash App, Venmo, Zelle, and other manual methods through the same normalized order record. Orders start payment-pending until Square confirms success or an owner uses the protected Mark paid action for a manual transfer.
+- Admin preview data is never presented as production data. Protected API routes require `ADMIN_API_TOKEN`; database access is configured with `DATABASE_URL`.
 - All used photography is committed under `public/` and referenced with portable root-relative paths.
 
 ## Product
 
-Visitors can browse the weekly menu grouped by category, choose meal quantities, see meal and premium subtotals update live, select pickup or delivery, enter customer details, review the order, and reach a clearly labeled Square hosted-checkout handoff. The page also includes local brand storytelling, an editorial meal gallery, demo social proof, contact links, and responsive navigation.
+Visitors can move through dedicated `/`, `/menu`, `/order`, `/how-it-works`, `/about`, `/gallery`, and `/contact` pages with consistent navigation, supplied-logo branding, local Jacksonville storytelling, weekly menu browsing, quantity controls, and a six-step preorder flow. Owners can open `/admin` for protected, URL-backed dashboard, orders, prep, meal library, weekly menu, customers, analytics, payments, and settings destinations using one shared order ledger.
 
 ## User preferences
 

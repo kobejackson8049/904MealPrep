@@ -1,0 +1,596 @@
+IMPORTANT WEBSITE STRUCTURE UPDATE:
+
+Rebuild the current 904 Meal Prepz website as a TRUE MULTI-PAGE WEBSITE.
+
+I do NOT want the entire website presented as one long scrolling page.
+
+The current one-page layout feels too much like a landing page. I want this to feel like a complete professional business website with clear navigation between dedicated pages.
+
+Keep the current premium visual direction, branding, photos, videos, meal-prep functionality, admin functionality, GitHub portability, and Vercel compatibility, but reorganize the site into multiple pages.
+
+Do NOT remove any previously requested features.
+
+⸻
+
+PUBLIC WEBSITE PAGES
+
+Create these primary routes/pages:
+
+1. HOME
+
+Route:
+
+/
+
+Purpose:
+
+Introduce 904 Meal Prepz and immediately communicate what they do.
+
+Include:
+
+* premium hero section
+* strong food photo or looping meal-prep video
+* headline
+* short business description
+* current weekly ordering deadline/countdown
+* preview of several meals from this week’s menu
+* quick “How It Works” preview
+* strong CTA to view the full menu
+* strong CTA to build an order
+* social proof/reviews preview
+* local Jacksonville identity
+
+Do NOT put the entire menu, entire about section, full ordering system, full gallery, and every feature on the homepage.
+
+The homepage should introduce the business and direct users to dedicated pages.
+
+⸻
+
+2. THIS WEEK’S MENU
+
+Route:
+
+/menu
+
+This page displays ONLY meals currently published by the admin for the active week.
+
+Group meals by category:
+
+* Breakfast
+* Lunch
+* Dinner
+* Premium
+
+Every meal should show:
+
+* image
+* meal number if applicable
+* title
+* description
+* calories
+* protein
+* carbs
+* price
+* premium badge where appropriate
+
+Standard meal price:
+
+$8
+
+Premium meal price:
+
+$10
+
+Include prominent:
+
+Build My Order
+
+CTAs.
+
+⸻
+
+3. BUILD YOUR ORDER
+
+Route:
+
+/order
+
+This is the primary customer ordering experience.
+
+Do NOT use traditional “Add to Cart” buttons.
+
+Allow customers to select quantities directly:
+
+[-] 0 [+]
+
+beside each live meal.
+
+Organize the current weekly menu by category.
+
+Include a sticky or persistent order summary containing:
+
+* total meals selected
+* selected meals
+* quantities
+* standard meal charges
+* premium meal charges
+* subtotal
+
+Customer should then proceed through:
+
+STEP 1 — Choose meals
+
+STEP 2 — Pickup or delivery
+
+STEP 3 — Customer information
+
+STEP 4 — Payment method
+
+STEP 5 — Review order
+
+STEP 6 — Checkout / order confirmation
+
+Payment options should support:
+
+* Square as preferred/default
+* Apple Pay where supported
+* Cash App
+* Zelle
+* Venmo
+
+All payment methods must feed the SAME order database and admin system.
+
+⸻
+
+4. HOW IT WORKS
+
+Route:
+
+/how-it-works
+
+Explain the weekly ordering process clearly.
+
+Suggested sections:
+
+1. New menu drops
+2. Choose your meals
+3. Select pickup or delivery
+4. Pay
+5. Meals are prepared
+6. Pickup/delivery
+7. Heat, eat, repeat
+
+Include visual examples and tasteful food photography.
+
+⸻
+
+5. ABOUT
+
+Route:
+
+/about
+
+Tell the 904 Meal Prepz story.
+
+Position it as a Jacksonville-area meal prep business helping customers save time and eat flavorful prepared meals.
+
+Include:
+
+* local identity
+* mission
+* food philosophy
+* behind-the-scenes photography/video
+
+Keep unsupported business claims conservative and editable.
+
+⸻
+
+6. GALLERY
+
+Route:
+
+/gallery
+
+Create a dedicated premium food gallery.
+
+Use real uploaded meal photos and videos.
+
+Avoid a boring uniform grid.
+
+Use editorial layouts, larger featured images, and strong mobile presentation.
+
+⸻
+
+7. FAQ / CONTACT
+
+Route:
+
+/contact
+
+Include:
+
+* contact information
+* pickup questions
+* delivery questions
+* payment questions
+* weekly menu questions
+* order cutoff explanation
+* call/text/email buttons
+* Instagram link
+
+Make phone and email links functional.
+
+⸻
+
+8. ADMIN LOGIN
+
+Route:
+
+/admin
+
+Public visitors should NOT see admin dashboard data.
+
+Create a secure admin authentication entry point.
+
+⸻
+
+MAIN NAVIGATION
+
+Create a professional navigation bar with:
+
+* Home
+* This Week’s Menu
+* Build Your Order
+* How It Works
+* About
+* Gallery
+* Contact
+
+Add a visually stronger:
+
+ORDER NOW
+
+button.
+
+Mobile navigation must be polished and easy to use.
+
+Keep navigation consistent across all public pages.
+
+⸻
+
+ADMIN — MULTI-PAGE DASHBOARD
+
+The admin experience should also NOT be one giant scrolling page.
+
+Build a separate admin layout with its own sidebar/navigation.
+
+Create dedicated admin routes:
+
+/admin/dashboard
+
+/admin/orders
+
+/admin/kitchen-prep
+
+/admin/meals
+
+/admin/weekly-menu
+
+/admin/customers
+
+/admin/analytics
+
+/admin/payments
+
+/admin/settings
+
+⸻
+
+ADMIN DASHBOARD
+
+/admin/dashboard
+
+Show quick business overview:
+
+* weekly revenue
+* weekly orders
+* total meals sold
+* average order value
+* pickup orders
+* delivery orders
+* pending payments
+* top meal
+* returning customer percentage
+
+Include useful charts and recent orders.
+
+⸻
+
+ORDERS
+
+/admin/orders
+
+Show all customer orders.
+
+Each order should include:
+
+* order number
+* customer name
+* contact info
+* selected meals
+* quantities
+* total
+* payment method
+* payment status
+* pickup/delivery
+* order status
+* date/time
+
+Order statuses:
+
+* New
+* Confirmed
+* Preparing
+* Ready
+* Out for Delivery
+* Completed
+* Cancelled
+
+⸻
+
+KITCHEN PREP
+
+/admin/kitchen-prep
+
+Automatically calculate how many of each meal must be prepared for the current active week.
+
+Example:
+
+Teriyaki Chicken Bowl — 31
+
+Jerk Chicken Bowl — 28
+
+Breakfast Scramble — 16
+
+Smoky Salmon Bowl — 11
+
+Allow clicking a meal to see:
+
+* customers who ordered it
+* quantities per customer
+
+Include printable/exportable prep summary.
+
+⸻
+
+MEAL LIBRARY
+
+/admin/meals
+
+This is the permanent library of every meal they have ever created.
+
+Admins can:
+
+* add meal
+* upload image
+* enter title
+* description
+* calories
+* protein
+* carbs
+* choose category
+* edit meal
+* archive meal
+
+Categories:
+
+* Breakfast
+* Lunch
+* Dinner
+* Premium
+
+Standard meals automatically cost $8.
+
+Premium meals automatically cost $10.
+
+Do not require admins to re-create meals every week.
+
+⸻
+
+THIS WEEK’S MENU
+
+/admin/weekly-menu
+
+Admin sees the Meal Library and chooses which meals are offered this week.
+
+Use toggles/check boxes such as:
+
+[✓] Teriyaki Chicken
+
+[ ] Cajun Chicken Pasta
+
+[✓] Smoky Salmon — Premium
+
+Include:
+
+* draft menu state
+* menu preview
+* publish menu action
+
+Admin can configure:
+
+* week title
+* order open date
+* order cutoff
+* pickup windows
+* delivery windows
+* announcement
+
+Only the published menu should appear to customers.
+
+⸻
+
+CUSTOMERS
+
+/admin/customers
+
+Track:
+
+* name
+* phone
+* email
+* address
+* total lifetime spend
+* number of orders
+* average order value
+* favorite meals
+* last order date
+* pickup/delivery preference
+
+⸻
+
+ANALYTICS
+
+/admin/analytics
+
+Include:
+
+* revenue by week
+* orders by week
+* meals sold
+* average order value
+* top-selling meals
+* lowest-selling meals
+* most popular categories
+* new vs returning customers
+* repeat-customer rate
+* top customers by spend
+* revenue by payment method
+* delivery vs pickup
+* premium meal performance
+
+Maintain historical meal analytics across weeks.
+
+⸻
+
+PAYMENTS
+
+/admin/payments
+
+Show:
+
+* payment method
+* paid orders
+* pending payments
+* refunded payments
+* amount pending
+* revenue by payment method
+
+Square should be preferred.
+
+Cash App, Venmo and Zelle orders should create normal orders with:
+
+Payment Pending
+
+status until an admin marks them paid.
+
+Once marked paid, all revenue/customer analytics should update normally.
+
+⸻
+
+SETTINGS
+
+/admin/settings
+
+Allow configurable business settings:
+
+* business name
+* phone
+* email
+* social links
+* pickup information
+* delivery zones
+* delivery fees
+* standard meal price
+* premium meal price
+* Cash App payment instructions
+* Venmo payment instructions
+* Zelle payment instructions
+* payment-provider settings placeholders
+
+Do not expose secret credentials in the UI.
+
+⸻
+
+PERSISTENT DATABASE
+
+The admin system, weekly menus, customers, orders, analytics and payment statuses require persistent production data.
+
+Do NOT use:
+
+* MemStorage
+* temporary runtime state
+* Replit-only database architecture
+
+Use a portable production-ready database architecture that can be owned by the client and deployed outside Replit.
+
+Keep configuration environment-variable based.
+
+Historical orders must preserve their original:
+
+* meal name
+* price
+* quantity
+* totals
+
+even if a meal is edited later.
+
+⸻
+
+MEDIA / IMAGE HANDLING
+
+Existing demo images and videos should remain in portable public/static assets where appropriate.
+
+For future admin-uploaded meal images, design a production-ready image-storage abstraction that can later connect to client-owned cloud storage.
+
+Do not store production admin uploads only in Replit runtime storage.
+
+Do not use temporary upload URLs.
+
+⸻
+
+DEPLOYMENT / HANDOFF
+
+Preserve easy:
+
+Replit → GitHub → Vercel → client domain
+
+architecture.
+
+Do not introduce unnecessary Replit-specific dependencies.
+
+Maintain:
+
+* clean GitHub portability
+* environment-variable configuration
+* production build compatibility
+* README documentation
+* Vercel compatibility
+
+Do not commit private keys, API credentials or .env files.
+
+⸻
+
+IMPORTANT DESIGN RULE
+
+This should feel like a polished MULTI-PAGE WEBSITE and business application.
+
+Do not simply move the existing sections into one endless page.
+
+Each page should have a clear purpose, its own layout and strong visual hierarchy.
+
+Pages should still feel like one cohesive brand.
+
+Use transitions between pages tastefully, but prioritize speed and usability.
+
+Do not break existing working functionality while restructuring the application.

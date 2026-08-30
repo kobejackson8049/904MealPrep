@@ -442,6 +442,18 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .site-shell { overflow: clip; }
 .display-face { font-family: var(--app-font-serif); letter-spacing: -0.055em; }
 .mono-label { font-family: var(--app-font-mono); text-transform: uppercase; letter-spacing: .12em; font-size: 10px; }
+.admin-shell { font-family: var(--app-font-sans); }
+@media print {
+  body:has(.admin-print-sheet) * { visibility: hidden !important; }
+  body:has(.admin-print-sheet) .admin-print-sheet,
+  body:has(.admin-print-sheet) .admin-print-sheet * { visibility: visible !important; }
+  body:has(.admin-print-sheet) .admin-print-sheet {
+    position: absolute; inset: 0; display: block; padding: 0; background: #fff;
+  }
+  body:has(.admin-print-sheet) .admin-print-sheet > section {
+    margin-bottom: 20px; break-inside: avoid;
+  }
+}
 .grain::after {
   content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .045; z-index: 30;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E");
